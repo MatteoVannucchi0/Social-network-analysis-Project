@@ -5,8 +5,10 @@ from pathlib import Path
 import pandas as pd
 import pycountry
 
-per_year_path: Path = Path('per_year')
+data_path: Path = Path('data')
+per_year_path: Path = data_path / 'per_year'
 code_mapping_path: Path = Path('codes')
+preprocessed_path: Path = data_path / 'preprocessed'
 
 INTERNATIONAL_CODES = pd.read_csv(Path("codes") / "international_codes.csv")['Code'].values
 INTERNATIONAL_REGION_MAPPING = pd.read_csv(Path("codes") / "international_region_codes.csv").set_index('Code')[
@@ -18,9 +20,11 @@ COUNTRIES_MAPPING = {country.alpha_3: country.name for country in pycountry.coun
 
 CODE_MAPPING = {}
 
+UNK_CODES = ["UNK_CODE", "UNK_IGO"]
+
 
 def load_data_year(year: int) -> pd.DataFrame:
-    return pd.read_csv(per_year_path / f"processed_{year}.csv")
+    return pd.read_csv(preprocessed_path / f"preprocessed_{year}.csv")
 
 def load_code_mapping() -> dict:
     global CODE_MAPPING
@@ -103,29 +107,31 @@ def convert_to_country_code(df: pd.DataFrame) -> pd.DataFrame:
     df['Target code'] = df['Target'].apply(convert)
     return df
 
-load_code_mapping()
-df = load_data_year(2006)
-df = convert_to_country_code(df)
-save_code_mapping()
+def clean_data(df: pd.DataFrame) -> pd.DataFrame:
+    df = df[(~df['Source code'].isin(UNK_CODES)) & (~df['Target code'].isin(UNK_CODES))]
+    df = df.drop(columns=['Source', 'Target'])
+    # Drop rows with nan values
+    df = df.dropna()
+    return df
 
-# #
-value_count = df[~df['Source code'].isnull()]['Source'].value_counts()
-for item in value_count.items():
-    print(item)
+def save_data(df: pd.DataFrame, year: int) -> None:
+    df.to_csv(preprocessed_path / f"preprocessed_{year}.csv", index=False)
 
-print(df.head(100))
+def preprocess_data() -> None:
+    # Preprocess data in data folder
+    for file in os.listdir(per_year_path):
+        year = int(file.split("_")[1].split(".")[0])
+        if (preprocessed_path / f"preprocessed_{year}.csv").exists():
+            print(f"File preprocessed_{year}.csv already exists, skipping file {file}")
+            continue
+        try:
+            if file.endswith(".csv"):
+                df = pd.read_csv(per_year_path / file)
+                df = convert_to_country_code(df)
+                df_cleaned = clean_data(df)
+                save_data(df_cleaned, year)
+        except Exception as e:
+            print(f"Error in preprocessing {file} for year {year}: {e}")
+            continue
+preprocess_data()
 
-# print(len(value_count))
-
-# International orgs are:
-# - IGOUNO -> United Nations                            -> UN
-# - IGOWST -> North Atlantic Treaty Organization (NATO) -> NATO
-# - IGOEUR -> European Union / European Economic Community / Council of Europe / European Free Trade Association / Council of Security and Cooperation in Europe OSCE -> EU
-# - IGOMEA -> Arab League -> ARB
-# - IGOSEA -> South East Asia Treaty Organization (SEATO) c'è ne sono tre distinte
-# - IGOAFR -> African Union and derivates
-# - IGOOPC -> Organization of the Petroleum Exporting Countries (OPEC)
-# - IGOOAS -> Organization of American States (OAS)
-# - IGOWAF -> West African Economic and Monetary Union (UEMOA)
-# - NGOXFM -> Oxfam
-# - IGOCWN -> Commonwealth of Nations
