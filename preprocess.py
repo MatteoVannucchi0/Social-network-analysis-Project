@@ -133,5 +133,4 @@ def preprocess_data() -> None:
         except Exception as e:
             print(f"Error in preprocessing {file} for year {year}: {e}")
             continue
-preprocess_data()
 
