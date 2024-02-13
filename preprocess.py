@@ -6,7 +6,7 @@ import pandas as pd
 import pycountry
 
 data_path: Path = Path('data')
-per_year_path: Path = data_path / 'per_year'
+raw_path: Path = data_path / 'raw_year'
 code_mapping_path: Path = Path('codes')
 preprocessed_path: Path = data_path / 'preprocessed'
 
@@ -25,6 +25,7 @@ UNK_CODES = ["UNK_CODE", "UNK_IGO"]
 
 def load_data_year(year: int) -> pd.DataFrame:
     return pd.read_csv(preprocessed_path / f"preprocessed_{year}.csv")
+
 
 def load_code_mapping() -> dict:
     global CODE_MAPPING
@@ -45,7 +46,6 @@ def save_code_mapping() -> None:
         print("Error in saving code mapping")
 
 
-
 def extract_country_code(code) -> str | None:
     main_code = code[:3]
     if main_code in COUNTRIES_MAPPING:
@@ -54,6 +54,7 @@ def extract_country_code(code) -> str | None:
         return main_code
     else:
         return None
+
 
 def extract_keds_code(code) -> str | None:
     if code in KEDS_MAPPING:
@@ -65,6 +66,7 @@ def extract_keds_code(code) -> str | None:
     else:
         return None
 
+
 def extract_international_org_code(code: str) -> str | None:
     if code in INTERNATIONAL_ORGANIZATION_MAPPING:
         CODE_MAPPING[code] = INTERNATIONAL_ORGANIZATION_MAPPING[code]
@@ -72,12 +74,14 @@ def extract_international_org_code(code: str) -> str | None:
     else:
         return None
 
+
 def extract_region_code(code: str) -> str | None:
     if code in INTERNATIONAL_REGION_MAPPING:
         CODE_MAPPING[code] = INTERNATIONAL_REGION_MAPPING[code]
         return code
     else:
         return None
+
 
 def extract_international_code(x):
     if x[:3] in INTERNATIONAL_CODES:
@@ -107,6 +111,7 @@ def convert_to_country_code(df: pd.DataFrame) -> pd.DataFrame:
     df['Target code'] = df['Target'].apply(convert)
     return df
 
+
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     df = df[(~df['Source code'].isin(UNK_CODES)) & (~df['Target code'].isin(UNK_CODES))]
     df = df.drop(columns=['Source', 'Target'])
@@ -114,24 +119,27 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     df = df.dropna()
     return df
 
+
 def save_data(df: pd.DataFrame, year: int) -> None:
     df.to_csv(preprocessed_path / f"preprocessed_{year}.csv", index=False)
 
+
 def preprocess_data() -> None:
     # Preprocess data in data folder
-    for file in os.listdir(per_year_path):
+    for file in os.listdir(raw_path):
         year = int(file.split("_")[1].split(".")[0])
         if (preprocessed_path / f"preprocessed_{year}.csv").exists():
             print(f"File preprocessed_{year}.csv already exists, skipping file {file}")
             continue
         try:
             if file.endswith(".csv"):
-                df = pd.read_csv(per_year_path / file)
+                df = pd.read_csv(raw_path / file)
                 df = convert_to_country_code(df)
                 df_cleaned = clean_data(df)
                 save_data(df_cleaned, year)
         except Exception as e:
             print(f"Error in preprocessing {file} for year {year}: {e}")
             continue
-preprocess_data()
 
+
+preprocess_data()
