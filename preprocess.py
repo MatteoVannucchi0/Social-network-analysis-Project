@@ -6,7 +6,7 @@ import pandas as pd
 import pycountry
 
 data_path: Path = Path('data')
-raw_path: Path = data_path / 'raw_year'
+raw_year_path: Path = data_path / 'raw_year'
 code_mapping_path: Path = Path('codes')
 preprocessed_path: Path = data_path / 'preprocessed'
 
@@ -126,14 +126,14 @@ def save_data(df: pd.DataFrame, year: int) -> None:
 
 def preprocess_data() -> None:
     # Preprocess data in data folder
-    for file in os.listdir(raw_path):
+    for file in os.listdir(raw_year_path):
         year = int(file.split("_")[1].split(".")[0])
         if (preprocessed_path / f"preprocessed_{year}.csv").exists():
             print(f"File preprocessed_{year}.csv already exists, skipping file {file}")
             continue
         try:
             if file.endswith(".csv"):
-                df = pd.read_csv(raw_path / file)
+                df = pd.read_csv(raw_year_path / file)
                 df = convert_to_country_code(df)
                 df_cleaned = clean_data(df)
                 save_data(df_cleaned, year)
@@ -142,4 +142,5 @@ def preprocess_data() -> None:
             continue
 
 
-preprocess_data()
+if __name__ == "__main__":
+    preprocess_data()
