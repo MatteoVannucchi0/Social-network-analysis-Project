@@ -7,7 +7,7 @@ from preprocess import preprocessed_path, data_path
 
 VALUE_COUNT_MIN_THRESHOLD: int = 100
 PAIR_COUNT_MIN_THRESHOLD: int = 100
-QUANTILE: float = 0.85
+QUANTILE: float = 0.93
 
 aggregated_path = data_path / "aggregated"
 aggregated_path.mkdir(exist_ok=True)
@@ -44,7 +44,7 @@ def aggregate_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             'Goldstein': [
                 ('sum', 'sum'),
                 ('mean', 'mean'),
-                ('std', np.std),
+                ('std', "std"),
                 ('count', 'count')
             ]
         }).reset_index()

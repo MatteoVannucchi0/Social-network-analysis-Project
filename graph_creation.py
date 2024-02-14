@@ -1,24 +1,58 @@
-import json
-from pathlib import Path
-
 import networkx as nx
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-
+from pathlib import Path
 from aggregation import aggregated_path
 
-COORDINATE_MAPPING_PATH = Path("data") / "coordinate_mapping.json"
+grap_path = Path('./graphs')
+operations = ["mean", "sum"]
+operation = 'other'
 
-
-def load_graph_for(year: int) -> nx.Graph:
+def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
     df = pd.read_csv(aggregated_path / f"aggregated_{year}.csv")
 
     # for every row in the dataframe, add an edge to the graph
     graph = nx.Graph()
 
+    edges = {}
     for _, row in df.iterrows():
-        graph.add_edge(row['Source code'], row['Target code'], weight=row['Goldstein_mean'])
+        source, target = row['Source code'], row['Target code']
+        edges[(source, target)] = {
+            "mean": row['Goldstein_mean'],
+            "sum": row['Goldstein_sum'],
+            "count": row['Goldstein_count']
+        }
+
+    aggregated = {}
+
+    for (source, target) in set(edges.keys()):
+        first = edges.get((source, target), {"mean": 0, "sum": 0, "count": 0})
+        second = edges.get((target, source), {"mean": 0, "sum": 0, "count": 0})
+
+        if first["count"] == 0 and second["count"] == 0:
+            continue
+
+        mean_ = (first["mean"] * first["count"] + second["mean"] * second["count"]) / (first["count"] + second["count"])
+        sum_ = (first["sum"] * first["count"] + second["sum"] * second["count"]) / (first["count"] + second["count"])
+        count_ = first["count"] + second["count"]
+
+        if operation == "mean":
+            aggregated[(source, target)] = mean_
+        elif operation == "sum":
+            aggregated[(source, target)] = sum_
+        elif operation == "other":
+            alpha, beta, gamma, theta = 0.0001, 0.05, -0.05, 1
+            aggregated[(source, target)] = alpha * (sum_ / np.log(count_)) + beta * 10 ** (mean_/count_) + gamma * (count_/1000)**theta
+        if source == "USA" or target == "USA":
+            print((source, target), aggregated[(source, target)])
+
+
+    for (source, target), weight in aggregated.items():
+        graph.add_edge(source, target, weight=weight)
+
+    # for _, row in df.iterrows():
+    #     graph.add_edge(row['Source code'], row['Target code'], weight=row['Goldstein_mean'])
 
     return graph
 
@@ -62,57 +96,7 @@ def display_graph(graph: nx.Graph, self_loop: bool = False):
     plt.show()
 
 
-# def generate_coordinate_mapping(graph: nx.Graph) -> dict:
-#     # Load from the file
-#     try:
-#         with open(COORDINATE_MAPPING_PATH, 'r', encoding="utf-8") as f:
-#             coordinate_mapping = json.load(f)
-#     except FileNotFoundError:
-#         coordinate_mapping = {}
-#     except json.JSONDecodeError:
-#         coordinate_mapping = {}
-#
-#     # Nominatim accepts only alpha-2 country codes
-#     import pycountry
-#     alpha_3_to_alpha_2 = {country.alpha_3: country.alpha_2 for country in pycountry.countries}
-#
-#     from geopy.geocoders import Nominatim
-#     from geopy.location import Location
-#     geolocator = Nominatim(user_agent="test")
-#
-#     # For each node generate a coordinate if it doesn't exist
-#     for node in graph.nodes():
-#         if node not in coordinate_mapping:
-#             alpha_2_node = alpha_3_to_alpha_2.get(node, None)
-#             print(alpha_2_node)
-#             if alpha_2_node:
-#                 location: Location = geolocator.geocode({"country_codes": alpha_2_node})
-#                 if location:
-#                     coordinate_mapping[node] = {
-#                         "longitude": location.longitude,
-#                         "latitude": location.latitude,
-#                         "address": location.address
-#                     }
-#                 else:
-#                     coordinate_mapping[node] = {
-#                         "longitude": None,
-#                         "latitude": None,
-#                         "address": None
-#                     }
-#             else:
-#                 coordinate_mapping[node] = {
-#                     "longitude": None,
-#                     "latitude": None,
-#                     "address": None
-#                 }
-#             # time.sleep(1)  # Rate limiting
-#
-#     # Save to the file
-#     with open(COORDINATE_MAPPING_PATH, 'w', encoding="utf-8") as f:
-#         json.dump(coordinate_mapping, f, indent=4, sort_keys=True, ensure_ascii=False)
-#
-
-def display_map(graph: nx.Graph, self_loop: bool = False):
+def display_map(graph: nx.Graph, self_loop: bool = False, operation: str = 'mean'):
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
     import pandas as pd
@@ -126,6 +110,7 @@ def display_map(graph: nx.Graph, self_loop: bool = False):
     south_pole_longitude = -80
     north_pole_longitude = 80
     count = 0
+
     def geocode(node):
         if node in geocode_dict:
             _, _, longitude, latitude = geocode_dict[node]
@@ -170,20 +155,28 @@ def display_map(graph: nx.Graph, self_loop: bool = False):
         start_pos, end_pos = node_positions[edge[0]], node_positions[edge[1]]
         weight = graph[edge[0]][edge[1]]['weight']
 
-        print(edge[0], edge[1], weight)
-
         color = 'red' if weight < 0 else 'blue'
 
+        if operation == "mean":
+            weight = np.exp(abs(weight)) / (np.e ** 5.5)
+        elif operation == "sum":
+            weight = weight / 7500
+        else:
+            weight = weight
 
         # np.exp(abs(weight)) / (np.e ** 9.5),
         # weight/5000
-        ax.plot([start_pos[0], end_pos[0]], [start_pos[1], end_pos[1]], color=color, linewidth=np.exp(abs(weight)) / (np.e ** 5.5), transform=proj, alpha=0.5)
+        ax.plot([start_pos[0], end_pos[0]], [start_pos[1], end_pos[1]], color=color,
+                linewidth=weight, transform=proj, alpha=0.5)
 
     # Show plot
     # plt.show()
     # save the plot
-    plt.savefig('map.png')
+    plt.savefig(grap_path / f'{operation}_map')
 
 
-graph = load_graph_for(1994)
-display_map(graph)
+graph = load_graph_for(2002, operation)
+display_map(graph, False, operation)
+# for operation in operations:
+#     graph = load_graph_for(1994, operation)
+#     display_map(graph, operation)
