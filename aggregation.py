@@ -1,10 +1,13 @@
 import os
 
+import numpy as np
 import pandas as pd
 
 from preprocess import preprocessed_path, data_path
 
 VALUE_COUNT_MIN_THRESHOLD: int = 100
+PAIR_COUNT_MIN_THRESHOLD: int = 100
+QUANTILE: float = 0.85
 
 aggregated_path = data_path / "aggregated"
 aggregated_path.mkdir(exist_ok=True)
@@ -34,8 +37,23 @@ def aggregate_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     # Filter out entities with a value count less than the threshold
     df_filtered = filter_entities(df)
 
+    replicated_df = df_filtered.loc[df_filtered.index.repeat(df_filtered["NumEvents"])].reset_index(drop=True).drop(columns=["NumEvents"])
+
     # take the mean for the column Goldstein
-    aggregated_df = df_filtered.groupby(['Source code', 'Target code'])[["Goldstein"]].sum().reset_index()
+    aggregated_df = replicated_df.groupby(['Source code', 'Target code']).agg({
+            'Goldstein': [
+                ('sum', 'sum'),
+                ('mean', 'mean'),
+                ('std', np.std),
+                ('count', 'count')
+            ]
+        }).reset_index()
+
+    aggregated_df.columns = ['_'.join(col).rstrip('_') for col in aggregated_df.columns.values]
+
+    # Take the pairs in the top 15% percent in terms of number of events
+    PAIR_COUNT_MIN_THRESHOLD = aggregated_df["Goldstein_count"].quantile(QUANTILE, interpolation='higher')
+    aggregated_df = aggregated_df[aggregated_df["Goldstein_count"] > PAIR_COUNT_MIN_THRESHOLD]
     # aggregated_df["Count"] = df_filtered.groupby(['Source code', 'Target code']).size().reset_index(name='Count')['Count']
 
     return aggregated_df
@@ -56,7 +74,7 @@ def aggregate_data():
                 aggregate_df.to_csv(aggregated_path / f"aggregated_{year}.csv", index=False)
         except Exception as e:
             print(f"Error in preprocessing {file} for year {year}: {e}")
-            continue
+            raise e
 
 
 if __name__ == "__main__":

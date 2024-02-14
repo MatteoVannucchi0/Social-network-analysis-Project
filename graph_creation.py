@@ -18,7 +18,7 @@ def load_graph_for(year: int) -> nx.Graph:
     graph = nx.Graph()
 
     for _, row in df.iterrows():
-        graph.add_edge(row['Source code'], row['Target code'], weight=row['Goldstein'])
+        graph.add_edge(row['Source code'], row['Target code'], weight=row['Goldstein_mean'])
 
     return graph
 
@@ -174,10 +174,10 @@ def display_map(graph: nx.Graph, self_loop: bool = False):
 
         color = 'red' if weight < 0 else 'blue'
 
-        if abs(weight) < 7:
-            continue
+
         # np.exp(abs(weight)) / (np.e ** 9.5),
-        ax.plot([start_pos[0], end_pos[0]], [start_pos[1], end_pos[1]], color=color, linewidth=weight/5000,transform=proj, alpha=0.5)
+        # weight/5000
+        ax.plot([start_pos[0], end_pos[0]], [start_pos[1], end_pos[1]], color=color, linewidth=np.exp(abs(weight)) / (np.e ** 5.5), transform=proj, alpha=0.5)
 
     # Show plot
     # plt.show()
@@ -185,5 +185,5 @@ def display_map(graph: nx.Graph, self_loop: bool = False):
     plt.savefig('map.png')
 
 
-graph = load_graph_for(2001)
+graph = load_graph_for(1994)
 display_map(graph)
