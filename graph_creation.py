@@ -1,13 +1,16 @@
+from pathlib import Path
+
 import networkx as nx
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-from pathlib import Path
+
 from aggregation import aggregated_path
 
 grap_path = Path('./graphs')
 operations = ["mean", "sum"]
 operation = 'other'
+
 
 def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
     df = pd.read_csv(aggregated_path / f"aggregated_{year}.csv")
@@ -16,6 +19,7 @@ def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
     graph = nx.Graph()
 
     edges = {}
+    total_count = 0
     for _, row in df.iterrows():
         source, target = row['Source code'], row['Target code']
         edges[(source, target)] = {
@@ -23,6 +27,7 @@ def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
             "sum": row['Goldstein_sum'],
             "count": row['Goldstein_count']
         }
+        total_count += row['Goldstein_count']
 
     aggregated = {}
 
@@ -37,22 +42,11 @@ def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
         sum_ = (first["sum"] * first["count"] + second["sum"] * second["count"]) / (first["count"] + second["count"])
         count_ = first["count"] + second["count"]
 
-        if operation == "mean":
-            aggregated[(source, target)] = mean_
-        elif operation == "sum":
-            aggregated[(source, target)] = sum_
-        elif operation == "other":
-            alpha, beta, gamma, theta = 0.0001, 0.05, -0.05, 1
-            aggregated[(source, target)] = alpha * (sum_ / np.log(count_)) + beta * 10 ** (mean_/count_) + gamma * (count_/1000)**theta
-        if source == "USA" or target == "USA":
-            print((source, target), aggregated[(source, target)])
+        weight = np.log(abs(sum_)) * np.sign(sum_)
+        line_width = weight / 3
+        alpha = 0.35
 
-
-    for (source, target), weight in aggregated.items():
-        graph.add_edge(source, target, weight=weight)
-
-    # for _, row in df.iterrows():
-    #     graph.add_edge(row['Source code'], row['Target code'], weight=row['Goldstein_mean'])
+        graph.add_edge(source, target, weight=weight, line_width=line_width, alpha=alpha)
 
     return graph
 
@@ -96,6 +90,22 @@ def display_graph(graph: nx.Graph, self_loop: bool = False):
     plt.show()
 
 
+def add_cyclic_point(lon, lat, data=None):
+    """
+    Adds a cyclic point to a line to properly handle the dateline discontinuity.
+    """
+    if lon[-1] < lon[0]:
+        lon = np.ma.concatenate((lon, [lon[0] + 360]))
+        lat = np.ma.concatenate((lat, [lat[0]]))
+        if data is not None:
+            data = np.ma.concatenate((data, [data[0]]))
+    else:
+        lon = np.ma.concatenate(([lon[-1] - 360], lon))
+        lat = np.ma.concatenate(([lat[-1]], lat))
+        if data is not None:
+            data = np.ma.concatenate(([data[-1]], data))
+    return lon, lat, data
+
 def display_map(graph: nx.Graph, self_loop: bool = False, operation: str = 'mean'):
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
@@ -127,7 +137,7 @@ def display_map(graph: nx.Graph, self_loop: bool = False, operation: str = 'mean
     proj = ccrs.PlateCarree()
 
     # Create a matplotlib figure with a GeoAxes set with the projection
-    fig = plt.figure(figsize=(25, 15))
+    fig = plt.figure(figsize=(50, 30))
     ax = fig.add_subplot(1, 1, 1, projection=proj)
 
     # Add features to the map
@@ -153,29 +163,30 @@ def display_map(graph: nx.Graph, self_loop: bool = False, operation: str = 'mean
     # Draw edges
     for edge in graph.edges():
         start_pos, end_pos = node_positions[edge[0]], node_positions[edge[1]]
+
+        start_lon, start_lat = start_pos
+        end_lon, end_lat = end_pos
+
+        if abs(start_lon - end_lon) > 180:
+            start_lon, start_lat, _ = add_cyclic_point(np.array([start_lon]), np.array([start_lat]))
+            end_lon, end_lat, _ = add_cyclic_point(np.array([end_lon]), np.array([end_lat]))
+
         weight = graph[edge[0]][edge[1]]['weight']
+        line_width = graph[edge[0]][edge[1]]['line_width']
+        alpha = graph[edge[0]][edge[1]]['alpha']
 
         color = 'red' if weight < 0 else 'blue'
 
-        if operation == "mean":
-            weight = np.exp(abs(weight)) / (np.e ** 5.5)
-        elif operation == "sum":
-            weight = weight / 7500
-        else:
-            weight = weight
-
-        # np.exp(abs(weight)) / (np.e ** 9.5),
-        # weight/5000
-        ax.plot([start_pos[0], end_pos[0]], [start_pos[1], end_pos[1]], color=color,
-                linewidth=weight, transform=proj, alpha=0.5)
+        ax.plot([start_lon, end_lon], [start_lat, end_lat], color=color,
+                linewidth=line_width, transform=proj, alpha=alpha)
 
     # Show plot
     # plt.show()
     # save the plot
-    plt.savefig(grap_path / f'{operation}_map')
+    plt.savefig(grap_path / f'{operation}_map')  # , dpi=300)
 
 
-graph = load_graph_for(2002, operation)
+graph = load_graph_for(2013, operation)
 display_map(graph, False, operation)
 # for operation in operations:
 #     graph = load_graph_for(1994, operation)
