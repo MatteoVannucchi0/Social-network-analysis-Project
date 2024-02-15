@@ -1,15 +1,15 @@
 from pathlib import Path
 
 import networkx as nx
-import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
 from aggregation import aggregated_path
 
 grap_path = Path('./graphs')
-operations = ["mean", "sum"]
-operation = 'other'
+
+GEOCODE_DICT: dict[str, (str, int, float, float)] = pd.read_csv("data/country_position2.csv").set_index(
+    'alpha_3').T.to_dict('list')
 
 
 def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
@@ -20,6 +20,7 @@ def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
 
     edges = {}
     total_count = 0
+    nation_total_count = {}
     for _, row in df.iterrows():
         source, target = row['Source code'], row['Target code']
         edges[(source, target)] = {
@@ -28,6 +29,8 @@ def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
             "count": row['Goldstein_count']
         }
         total_count += row['Goldstein_count']
+        nation_total_count[source] = nation_total_count.get(source, 0) + row['Goldstein_count']
+        nation_total_count[target] = nation_total_count.get(target, 0) + row['Goldstein_count']
 
     aggregated = {}
 
@@ -42,8 +45,14 @@ def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
         sum_ = (first["sum"] * first["count"] + second["sum"] * second["count"]) / (first["count"] + second["count"])
         count_ = first["count"] + second["count"]
 
-        weight = np.log(abs(sum_)) * np.sign(sum_)
-        line_width = weight / 3
+        nation_total = nation_total_count[source] + nation_total_count[target]
+        divisor = 0.005 * nation_total + 0.0005 * total_count
+
+        weight = sum_ / divisor
+        line_width = weight
+
+        # weight = np.log(abs(sum_)) * np.sign(sum_)
+        # line_width = (sum_ / (0.005 * (nation_total_count[source] + nation_total_count[target]) + 0.0005 * total_count))
         alpha = 0.35
 
         graph.add_edge(source, target, weight=weight, line_width=line_width, alpha=alpha)
@@ -51,7 +60,15 @@ def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
     return graph
 
 
-def display_graph(graph: nx.Graph, self_loop: bool = False):
+def geocode(node):
+    if node in GEOCODE_DICT:
+        _, _, longitude, latitude = GEOCODE_DICT[node]
+        return latitude, longitude
+    else:
+        return (0, 0)
+
+
+def display_graph_no_plotly(graph: nx.Graph, self_loop: bool = False):
     if not self_loop:
         graph.remove_edges_from(nx.selfloop_edges(graph))
 
@@ -90,48 +107,13 @@ def display_graph(graph: nx.Graph, self_loop: bool = False):
     plt.show()
 
 
-def add_cyclic_point(lon, lat, data=None):
-    """
-    Adds a cyclic point to a line to properly handle the dateline discontinuity.
-    """
-    if lon[-1] < lon[0]:
-        lon = np.ma.concatenate((lon, [lon[0] + 360]))
-        lat = np.ma.concatenate((lat, [lat[0]]))
-        if data is not None:
-            data = np.ma.concatenate((data, [data[0]]))
-    else:
-        lon = np.ma.concatenate(([lon[-1] - 360], lon))
-        lat = np.ma.concatenate(([lat[-1]], lat))
-        if data is not None:
-            data = np.ma.concatenate(([data[-1]], data))
-    return lon, lat, data
-
-def display_map(graph: nx.Graph, self_loop: bool = False, operation: str = 'mean'):
+def display_map_no_plotly(graph: nx.Graph, self_loop: bool = False):
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
-    import pandas as pd
 
-    # df with alpha-3 code and Latitude and Longitude columns
-    df = pd.read_csv("data/country_position2.csv")
+    if not self_loop:
+        graph.remove_edges_from(nx.selfloop_edges(graph))
 
-    # Create a dictionary with alpha-3 code as key and a tuple with latitude and longitude as value
-    geocode_dict: dict[str, (str, int, float, float)] = df.set_index('alpha_3').T.to_dict('list')
-
-    south_pole_longitude = -80
-    north_pole_longitude = 80
-    count = 0
-
-    def geocode(node):
-        if node in geocode_dict:
-            _, _, longitude, latitude = geocode_dict[node]
-            return latitude, longitude
-        else:
-            nonlocal south_pole_longitude, north_pole_longitude, count
-            count += 1
-            if count % 2 == 0:
-                return np.sin(count / 5) * 160, north_pole_longitude + np.random.rand() * 10
-            else:
-                return np.sin(count / 5) * 160, south_pole_longitude + np.random.rand() * 10
 
     # Define the map projectio
     proj = ccrs.PlateCarree()
@@ -167,10 +149,6 @@ def display_map(graph: nx.Graph, self_loop: bool = False, operation: str = 'mean
         start_lon, start_lat = start_pos
         end_lon, end_lat = end_pos
 
-        if abs(start_lon - end_lon) > 180:
-            start_lon, start_lat, _ = add_cyclic_point(np.array([start_lon]), np.array([start_lat]))
-            end_lon, end_lat, _ = add_cyclic_point(np.array([end_lon]), np.array([end_lat]))
-
         weight = graph[edge[0]][edge[1]]['weight']
         line_width = graph[edge[0]][edge[1]]['line_width']
         alpha = graph[edge[0]][edge[1]]['alpha']
@@ -180,14 +158,155 @@ def display_map(graph: nx.Graph, self_loop: bool = False, operation: str = 'mean
         ax.plot([start_lon, end_lon], [start_lat, end_lat], color=color,
                 linewidth=line_width, transform=proj, alpha=alpha)
 
-    # Show plot
-    # plt.show()
     # save the plot
-    plt.savefig(grap_path / f'{operation}_map')  # , dpi=300)
+    plt.savefig(grap_path / f'no_plotly_map')  # , dpi=300)
 
 
-graph = load_graph_for(2013, operation)
-display_map(graph, False, operation)
-# for operation in operations:
-#     graph = load_graph_for(1994, operation)
-#     display_map(graph, operation)
+def get_plotly_map(graph: nx.Graph, self_loop: bool = False):
+    import plotly.graph_objects as go
+
+    if not self_loop:
+        graph.remove_edges_from(nx.selfloop_edges(graph))
+
+    node_x = []
+    node_y = []
+    for node in graph.nodes:
+        latitude, longitude = geocode(node)
+        node_x.append(longitude)
+        node_y.append(latitude)
+
+    edge_traces = []
+    for i, edge in enumerate(graph.edges):
+        source, target = edge
+        x0, y0 = geocode(source)
+        x1, y1 = geocode(target)
+
+        line_width = graph.edges[edge]['line_width']
+        alpha = graph.edges[edge]['alpha']
+
+        color = f'rgba(0,0,255,{alpha})' if line_width > 0 else f"rgba(255,0,0,{alpha})"
+
+        edge_traces.append(go.Scattergeo(
+            lon=[x0, x1],
+            lat=[y0, y1],
+            mode='lines',
+            line=dict(width=abs(line_width), color=color),
+        ))
+
+    # Node trace
+    node_traces = []
+    for node in graph.nodes:
+        latitude, longitude = geocode(node)
+
+        node_traces.append(go.Scattergeo(
+            lon=[latitude],
+            lat=[longitude],
+            mode='markers+text',
+            textposition="top left",
+            textfont=dict(size=12, color='black'),
+            text=node,
+            marker=dict(size=8, color='blue'),
+        ))
+
+    # Adding a simple world map outline
+    world_map_trace = go.Scattergeo(
+        lon=[-180, 180, 180, -180, -180],  # Simple square to mimic a map outline
+        lat=[-90, -90, 90, 90, -90],
+        mode='lines',
+        line=dict(width=0, color='white'),
+        showlegend=False
+    )
+
+    traces = edge_traces + node_traces + [world_map_trace]
+
+    # Create the figure
+    fig = go.Figure(data=traces,
+                    layout=go.Layout(
+                        showlegend=False,
+                        hovermode='closest',
+                        margin=dict(b=20, l=5, r=5, t=40),
+                        geo=dict(
+                            showframe=False,
+                            showcoastlines=False,
+                            projection_type='equirectangular'
+                        ),
+                        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                    )
+    return fig
+
+
+def display_map_plotly(graph: nx.Graph, self_loop: bool = False):
+    fig = get_plotly_map(graph, self_loop)
+    fig.show()
+
+    fig.write_image(grap_path / "plotly_map.png")
+
+
+def display_earth_plotly(graph: nx.Graph, self_loop: bool = False):
+    fig = get_plotly_map(graph, self_loop)
+    fig.update_geos(projection_type="orthographic")
+    fig.show()
+
+    fig.write_image(grap_path / "plotly_earth.png")
+
+
+from dash import dcc, html, Dash
+from dash.dependencies import Input, Output, State
+
+
+app = Dash(__name__)
+
+app.layout = html.Div([
+    dcc.Graph(id='interactive-graph'),
+    dcc.Slider(
+        id='year-slider',
+        min=1979,  # Extract minimum year from data
+        max=2014,  # Extract maximum year from data
+        value=1979,  # Set initial value to minimum year
+        marks={str(year): str(year) for year in range(1979, 2015)},
+        step=None
+    ),
+    dcc.Interval(id="animate", disabled=True),
+    html.Button("Play", id='Play'),
+])
+
+@app.callback(
+    Output('interactive-graph', 'figure'),
+    Input('year-slider', 'value')
+)
+def display_map_interactive_plotly(year: int):
+    graph = load_graph_for(year)
+    fig = get_plotly_map(graph, self_loop=False)
+    return fig
+
+
+@app.callback(
+    Output('year-slider', 'value'),
+    Input('animate', 'n_intervals'),
+    State('year-slider', 'value'),
+    prevent_initial_call=True,
+)
+def animate(n_intervals, value):
+    return (value + 1) % 2014
+
+@app.callback(
+    Output('animate', 'disabled'),
+    Input('Play', 'n_clicks'),
+    State('animate', 'disabled')
+)
+def play(n, playing):
+    if n:
+        return not playing
+    return playing
+
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
+
+# graph = load_graph_for(2004)
+# display_map_no_plotly(graph, True)
+# display_map_plotly(graph, True)
+# # for operation in operations:
+# #     graph = load_graph_for(1994, operation)
+# #     display_map(graph, operation)
