@@ -7,7 +7,6 @@ from preprocess import preprocessed_path, data_path
 
 VALUE_COUNT_MIN_THRESHOLD: int = 100
 PAIR_COUNT_MIN_THRESHOLD: int = 100
-QUANTILE: float = 0.985
 
 aggregated_path = data_path / "aggregated"
 aggregated_path.mkdir(exist_ok=True)
@@ -51,13 +50,15 @@ def aggregate_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         }).reset_index()
 
     aggregated_df.columns = ['_'.join(col).rstrip('_') for col in aggregated_df.columns.values]
-
-    # Take the pairs in the top 15% percent in terms of number of events
-    PAIR_COUNT_MIN_THRESHOLD = aggregated_df["Goldstein_count"].quantile(QUANTILE, interpolation='higher')
-    aggregated_df = aggregated_df[aggregated_df["Goldstein_count"] > PAIR_COUNT_MIN_THRESHOLD]
-    # aggregated_df["Count"] = df_filtered.groupby(['Source code', 'Target code']).size().reset_index(name='Count')['Count']
-
     return aggregated_df
+
+
+def load_dataset(year:int, quantile:float = 0.8) -> pd.DataFrame:
+    df = pd.read_csv(aggregated_path / f"aggregated_{year}.csv")
+    # Take the pairs in the top 15% percent in terms of number of events
+    PAIR_COUNT_MIN_THRESHOLD = df["Goldstein_count"].quantile(quantile, interpolation='higher')
+    df = df[df["Goldstein_count"] > PAIR_COUNT_MIN_THRESHOLD]
+    return df
 
 
 def aggregate_data():

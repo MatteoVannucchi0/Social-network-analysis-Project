@@ -4,7 +4,7 @@ import networkx as nx
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from aggregation import aggregated_path
+from aggregation import load_dataset
 
 grap_path = Path('./graphs')
 
@@ -13,7 +13,7 @@ GEOCODE_DICT: dict[str, (str, int, float, float)] = pd.read_csv("data/country_po
 
 
 def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
-    df = pd.read_csv(aggregated_path / f"aggregated_{year}.csv")
+    df = load_dataset(1990, 0.80)
 
     # for every row in the dataframe, add an edge to the graph
     graph = nx.Graph()
