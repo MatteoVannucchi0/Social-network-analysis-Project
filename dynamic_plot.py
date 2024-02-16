@@ -8,35 +8,80 @@ app = Dash(__name__)
 
 app.layout = html.Div([
     html.H1("Interactive map", style={'textAlign': 'center'}, id="title"),
-    # Make the graph larger
-    dcc.Graph(id='interactive-graph', style={'height': '60vh'}),
+
     html.Div([
-        # Add a label
-        html.Label('Select the year'),
-        dcc.Slider(
-            id='year-slider',
-            min=1979,  # Extract minimum year from data
-            max=2014,  # Extract maximum year from data
-            value=1979,  # Set initial value to minimum year
-            marks={str(year): str(year) for year in range(1979, 2015)},
-            step=1
-        ),
-    ], style={'textAlign': 'center', 'width': '50%', 'margin': 'auto'}),
-    html.Div([
-        # Add a label
-        html.Label('Select the quantile'),
-        dcc.Slider(
-            id='quantile-slider',
-            min=0,
-            max=1,
-            value=0.8,
-            marks={str(quantile): f"{quantile:0.2f}" for quantile in [0, 0.2, 0.4, 0.6, 0.8, 1.0]},
-            step=0.01,
-            # Display the current value
-            tooltip={'placement': 'bottom', 'always_visible': True}
-        )],
-        # Align to center and width = 20%
-        style={'textAlign': 'center', 'width': '20%', 'margin': 'auto'}),
+        html.Div([
+            # Make the graph larger
+            dcc.Graph(id='interactive-graph', style={'width': '80%', 'height': '75vh'},
+                      config={'displayModeBar': False}),
+            html.Div([
+                # Sliders
+                html.Div([
+                    html.Div([
+                        html.Label('Select the year'),
+                        dcc.Slider(
+                            id='year-slider',
+                            min=1979,  # Extract minimum year from data
+                            max=2014,  # Extract maximum year from data
+                            value=1979,  # Set initial value to minimum year
+                            marks={str(year): str(year) for year in range(1979, 2015, 2)},
+                            step=1,
+                        ),
+                    ], style={'textAlign': 'center', 'width': '60%', 'margin': 'auto'}),
+                    html.Div([
+                        html.Label('Select the quantile'),
+                        dcc.Slider(
+                            id='quantile-slider',
+                            min=0,
+                            max=1,
+                            value=0.8,
+                            marks={str(quantile): f"{quantile:0.2f}" for quantile in [0, 0.2, 0.4, 0.6, 0.8, 1.0]},
+                            step=0.01,
+                            tooltip={'placement': 'bottom', 'always_visible': True}
+                        ),
+                    ], style={'textAlign': 'center', 'width': '60%', 'margin': 'auto'}),
+                ], style={'margin-bottom': '20px'}),
+
+                # Select
+                html.Div([
+                    html.Div([
+                        html.H3('Select the measure', style={'textAlign': 'center'}),
+                        dcc.Dropdown(
+                            id="measure-selection",
+                            options=[
+                                {'label': 'No measure', 'value': 'none'},
+                                {'label': 'centrality-degree', 'value': 'centrality-degree'},
+                                {'label': 'centrality-eigenvector', 'value': 'centrality-eigenvector'},
+                                {'label': 'centrality-closeness', 'value': 'centrality-closeness'},
+                                {'label': 'centrality-katz', 'value': 'centrality-katz'},
+                                {'label': 'centrality-betweenness', 'value': 'centrality-betweenness'},
+                                {'label': 'k-components', 'value': 'k-components'},
+                                {'label': 'clique', 'value': 'clique'},
+                                {'label': 'community-louvain', 'value': 'community-louvain'},
+                                {'label': 'community-greedy', 'value': 'community-greedy'},
+                                {'label': 'community-label', 'value': 'community-label'},
+                            ],
+                            value='none',
+                        ),
+                    ], style={'width': '50%', 'display': 'inline-block', 'verticalAlign': 'top'}),
+
+                    html.Div([
+                        html.H3('Select the map type', style={'textAlign': 'center'}),
+                        dcc.Dropdown(
+                            id="map-selection",
+                            options=[
+                                {'label': 'Aggregated', 'value': 'all'},
+                                {'label': 'Only positive', 'value': 'only_positive'},
+                                {'label': 'Only negative', 'value': 'only_negative'},
+                            ],
+                            value='all',
+                        ),
+                    ], style={'width': '50%', 'display': 'inline-block', 'verticalAlign': 'top'})
+                ], style={'display': 'flex', 'justifyContent': 'center', 'width': '60%', 'margin': '0 auto'}),
+            ], style={'textAlign': 'center', 'width': '60%', 'margin': 'auto'})
+        ], style={'display': 'flex', 'justifyContent': 'center'}),
+    ], style={'textAlign': 'center', 'width': '100%', 'margin': 'auto'}),
+
     dcc.Interval(id="animate", disabled=True),
     html.Button("Play", id='Play', style={
         'margin': 'auto',
@@ -54,27 +99,7 @@ app.layout = html.Div([
             'background-color': '#5096E3',  # Hover effect color
         }
     }),
-    html.Div([
-        html.Label('Select the measure'),
-        dcc.RadioItems(
-            id="measure-selection",
-            options=[
-                {'label': 'none', 'value': 'none'},
-                {'label': 'centrality-degree', 'value': 'centrality-degree'},
-                {'label': 'centrality-eigenvector', 'value': 'centrality-eigenvector'},
-                {'label': 'centrality-closeness', 'value': 'centrality-closeness'},
-                {'label': 'centrality-katz', 'value': 'centrality-katz'},
-                {'label': 'centrality-betweenness', 'value': 'centrality-betweenness'},
-                {'label': 'k-components', 'value': 'k-components'},
-                {'label': 'clique', 'value': 'clique'},
-                {'label': 'community-louvain', 'value': 'community-louvain'},
-                {'label': 'community-greedy', 'value': 'community-greedy'},
-                {'label': 'community-label', 'value': 'community-label'},
-            ],
-            labelStyle={'display': 'block'},
-            value='none',
-        ),
-    ]),
+
 ])
 
 
@@ -84,9 +109,10 @@ app.layout = html.Div([
     Input('year-slider', 'value'),
     Input('quantile-slider', 'value'),
     Input("measure-selection", "value"),
+    Input("map-selection", "value"),
 )
-def display_map_interactive_plotly(year, quantile, measure):
-    graph = load_graph_for(year, quantile)
+def display_map_interactive_plotly(year, quantile, measure, map_type):
+    graph = load_graph_for(year, quantile, map_type)
     print()
     if measure == "none":
         fig = get_plotly_map(graph, self_loop=False)

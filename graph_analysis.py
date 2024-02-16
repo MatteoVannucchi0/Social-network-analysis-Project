@@ -6,14 +6,14 @@ import numpy as np
 from graph_creation import load_graph_for, get_plotly_node_traces, get_plotly_map, get_plotly_edge_traces
 
 
-def clustering(graph: nx.Graph) -> None:
+def clustering(graph: nx.Graph):
     """
     Compute the clustering of a graph
     """
     average_clustering = nx.average_clustering(graph, weight='weight')
     return average_clustering
 
-def clustering_coefficient(graph: nx.Graph, node: 'str') -> None:
+def clustering_coefficient(graph: nx.Graph, node: 'str'):
     """
     Compute the clustering of a graph
     """
@@ -21,7 +21,7 @@ def clustering_coefficient(graph: nx.Graph, node: 'str') -> None:
     return node_clustering
 
 
-def convert_weight(graph: nx.Graph, func) -> None:
+def convert_weight(graph: nx.Graph, func):
     """
     Convert the weight of a graph
     """
