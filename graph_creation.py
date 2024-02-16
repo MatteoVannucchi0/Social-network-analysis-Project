@@ -1,6 +1,9 @@
+import typing
 from pathlib import Path
+from typing import Callable
 
 import networkx as nx
+import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
@@ -12,8 +15,8 @@ GEOCODE_DICT: dict[str, (str, int, float, float)] = pd.read_csv("data/country_po
     'alpha_3').T.to_dict('list')
 
 
-def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
-    df = load_dataset(1990, 0.80)
+def load_graph_for(year: int, quantile=0.9) -> nx.Graph:
+    df = load_dataset(year, quantile)
 
     # for every row in the dataframe, add an edge to the graph
     graph = nx.Graph()
@@ -32,8 +35,6 @@ def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
         nation_total_count[source] = nation_total_count.get(source, 0) + row['Goldstein_count']
         nation_total_count[target] = nation_total_count.get(target, 0) + row['Goldstein_count']
 
-    aggregated = {}
-
     for (source, target) in set(edges.keys()):
         first = edges.get((source, target), {"mean": 0, "sum": 0, "count": 0})
         second = edges.get((target, source), {"mean": 0, "sum": 0, "count": 0})
@@ -41,18 +42,18 @@ def load_graph_for(year: int, operation: str = 'mean') -> nx.Graph:
         if first["count"] == 0 and second["count"] == 0:
             continue
 
-        mean_ = (first["mean"] * first["count"] + second["mean"] * second["count"]) / (first["count"] + second["count"])
         sum_ = (first["sum"] * first["count"] + second["sum"] * second["count"]) / (first["count"] + second["count"])
-        count_ = first["count"] + second["count"]
 
         nation_total = nation_total_count[source] + nation_total_count[target]
         divisor = 0.005 * nation_total + 0.0005 * total_count
 
         weight = sum_ / divisor
-        line_width = weight
 
-        # weight = np.log(abs(sum_)) * np.sign(sum_)
-        # line_width = (sum_ / (0.005 * (nation_total_count[source] + nation_total_count[target]) + 0.0005 * total_count))
+        log_threshold = 30
+        line_width = weight
+        if abs(line_width) > log_threshold:
+            line_width = np.sign(line_width) * (log_threshold + np.log10(abs(line_width) - log_threshold + 1))
+
         alpha = 0.35
 
         graph.add_edge(source, target, weight=weight, line_width=line_width, alpha=alpha)
@@ -114,7 +115,6 @@ def display_map_no_plotly(graph: nx.Graph, self_loop: bool = False):
     if not self_loop:
         graph.remove_edges_from(nx.selfloop_edges(graph))
 
-
     # Define the map projectio
     proj = ccrs.PlateCarree()
 
@@ -162,11 +162,8 @@ def display_map_no_plotly(graph: nx.Graph, self_loop: bool = False):
     plt.savefig(grap_path / f'no_plotly_map')  # , dpi=300)
 
 
-def get_plotly_map(graph: nx.Graph, self_loop: bool = False):
+def get_plotly_node_traces(graph: nx.Graph, get_scatter_geo_kwargs: Callable[[typing.Any], dict] = None):
     import plotly.graph_objects as go
-
-    if not self_loop:
-        graph.remove_edges_from(nx.selfloop_edges(graph))
 
     node_x = []
     node_y = []
@@ -174,6 +171,35 @@ def get_plotly_map(graph: nx.Graph, self_loop: bool = False):
         latitude, longitude = geocode(node)
         node_x.append(longitude)
         node_y.append(latitude)
+
+    node_traces = []
+    for node in graph.nodes:
+        latitude, longitude = geocode(node)
+
+        default_kwargs = {
+            "lon": [latitude],
+            "lat": [longitude],
+            "mode": 'markers+text',
+            "textposition": "top left",
+            "textfont": dict(size=12, color='black'),
+            "text": node,
+            "marker": dict(size=8, color='blue')
+        }
+
+        if get_scatter_geo_kwargs:
+            default_kwargs.update(get_scatter_geo_kwargs(node))
+
+        node_traces.append(go.Scattergeo(**default_kwargs))
+
+    return node_traces
+
+
+def get_plotly_edge_traces(graph: nx.Graph, self_loop: bool = False,
+                           get_scatter_geo_kwargs: Callable[[typing.Any], dict] = None):
+    import plotly.graph_objects as go
+
+    if not self_loop:
+        graph.remove_edges_from(nx.selfloop_edges(graph))
 
     edge_traces = []
     for i, edge in enumerate(graph.edges):
@@ -186,27 +212,23 @@ def get_plotly_map(graph: nx.Graph, self_loop: bool = False):
 
         color = f'rgba(0,0,255,{alpha})' if line_width > 0 else f"rgba(255,0,0,{alpha})"
 
-        edge_traces.append(go.Scattergeo(
-            lon=[x0, x1],
-            lat=[y0, y1],
-            mode='lines',
-            line=dict(width=abs(line_width), color=color),
-        ))
+        default_kwargs = {
+            "lon": [x0, x1],
+            "lat": [y0, y1],
+            "mode": 'lines',
+            "line": dict(width=abs(line_width), color=color),
+        }
 
-    # Node trace
-    node_traces = []
-    for node in graph.nodes:
-        latitude, longitude = geocode(node)
+        if get_scatter_geo_kwargs:
+            default_kwargs.update(get_scatter_geo_kwargs(edge))
 
-        node_traces.append(go.Scattergeo(
-            lon=[latitude],
-            lat=[longitude],
-            mode='markers+text',
-            textposition="top left",
-            textfont=dict(size=12, color='black'),
-            text=node,
-            marker=dict(size=8, color='blue'),
-        ))
+        edge_traces.append(go.Scattergeo(**default_kwargs))
+
+    return edge_traces
+
+
+def get_plotly_world_map_trace():
+    import plotly.graph_objects as go
 
     # Adding a simple world map outline
     world_map_trace = go.Scattergeo(
@@ -217,6 +239,18 @@ def get_plotly_map(graph: nx.Graph, self_loop: bool = False):
         showlegend=False
     )
 
+    return world_map_trace
+
+
+def get_plotly_map(graph: nx.Graph, self_loop: bool = False):
+    import plotly.graph_objects as go
+
+    if not self_loop:
+        graph.remove_edges_from(nx.selfloop_edges(graph))
+
+    node_traces = get_plotly_node_traces(graph)
+    edge_traces = get_plotly_edge_traces(graph, self_loop)
+    world_map_trace = get_plotly_world_map_trace()
     traces = edge_traces + node_traces + [world_map_trace]
 
     # Create the figure
@@ -254,31 +288,69 @@ def display_earth_plotly(graph: nx.Graph, self_loop: bool = False):
 from dash import dcc, html, Dash
 from dash.dependencies import Input, Output, State
 
-
 app = Dash(__name__)
 
 app.layout = html.Div([
-    dcc.Graph(id='interactive-graph'),
-    dcc.Slider(
-        id='year-slider',
-        min=1979,  # Extract minimum year from data
-        max=2014,  # Extract maximum year from data
-        value=1979,  # Set initial value to minimum year
-        marks={str(year): str(year) for year in range(1979, 2015)},
-        step=None
-    ),
+    html.H1("Interactive map", style={'textAlign': 'center'}, id="title"),
+    # Make the graph larger
+    dcc.Graph(id='interactive-graph', style={'height': '60vh'}),
+    html.Div([
+        # Add a label
+        html.Label('Select the year'),
+        dcc.Slider(
+            id='year-slider',
+            min=1979,  # Extract minimum year from data
+            max=2014,  # Extract maximum year from data
+            value=1979,  # Set initial value to minimum year
+            marks={str(year): str(year) for year in range(1979, 2015)},
+            step=1
+        ),
+    ], style={'textAlign': 'center', 'width': '50%', 'margin': 'auto'}),
+    html.Div([
+        # Add a label
+        html.Label('Select the quantile'),
+        dcc.Slider(
+            id='quantile-slider',
+            min=0,
+            max=1,
+            value=0.8,
+            marks={str(quantile): f"{quantile:0.2f}" for quantile in [0, 0.2, 0.4, 0.6, 0.8, 1.0]},
+            step=0.01,
+            # Display the current value
+            tooltip={'placement': 'bottom', 'always_visible': True}
+        )],
+        # Align to center and width = 20%
+        style={'textAlign': 'center', 'width': '20%', 'margin': 'auto'}),
     dcc.Interval(id="animate", disabled=True),
-    html.Button("Play", id='Play'),
+    html.Button("Play", id='Play', style={
+        'margin': 'auto',
+        'display': 'block',
+        'width': '50%',
+        'textAlign': 'center',
+        'padding': '10px',
+        'background-color': '#75B2F8',  # Customizable color
+        'color': '#fff',  # Customizable text color
+        'border': 'none',  # Remove default border
+        'font-size': '16px',  # Font size
+        'font-weight': 'bold',  # Bold text
+        'cursor': 'pointer',  # Indicate interactiveness
+        ':hover': {
+            'background-color': '#5096E3',  # Hover effect color
+        }
+    })
 ])
+
 
 @app.callback(
     Output('interactive-graph', 'figure'),
-    Input('year-slider', 'value')
+    Output('title', 'children'),
+    Input('year-slider', 'value'),
+    Input('quantile-slider', 'value'),
 )
-def display_map_interactive_plotly(year: int):
-    graph = load_graph_for(year)
+def display_map_interactive_plotly(year, quantile):
+    graph = load_graph_for(year, quantile)
     fig = get_plotly_map(graph, self_loop=False)
-    return fig
+    return fig, f"Interactive map for year {year} with quantile {quantile}"
 
 
 @app.callback(
@@ -288,7 +360,11 @@ def display_map_interactive_plotly(year: int):
     prevent_initial_call=True,
 )
 def animate(n_intervals, value):
-    return (value + 1) % 2014
+    if value == 2014:
+        return 1979
+
+    return value + 1
+
 
 @app.callback(
     Output('animate', 'disabled'),
@@ -304,7 +380,7 @@ def play(n, playing):
 if __name__ == '__main__':
     app.run_server(debug=True)
 
-# graph = load_graph_for(2004)
+# graph = load_graph_for(1990)
 # display_map_no_plotly(graph, True)
 # display_map_plotly(graph, True)
 # # for operation in operations:
