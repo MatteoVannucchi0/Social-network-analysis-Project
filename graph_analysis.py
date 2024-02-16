@@ -5,6 +5,22 @@ import numpy as np
 
 from graph_creation import load_graph_for, get_plotly_node_traces, get_plotly_map, get_plotly_edge_traces
 
+
+def clustering(graph: nx.Graph) -> None:
+    """
+    Compute the clustering of a graph
+    """
+    average_clustering = nx.average_clustering(graph, weight='weight')
+    return average_clustering
+
+def clustering_coefficient(graph: nx.Graph, node: 'str') -> None:
+    """
+    Compute the clustering of a graph
+    """
+    node_clustering = nx.clustering(graph, weight='weight')
+    return node_clustering
+
+
 def convert_weight(graph: nx.Graph, func) -> None:
     """
     Convert the weight of a graph
@@ -204,5 +220,3 @@ def get_map_for_measure(graph: nx.graph, measure: str) -> None:
             return get_map_clique(graph)
         case _:
             raise ValueError(f"Measure {measure} not recognized")
-
-
