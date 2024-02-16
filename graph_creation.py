@@ -242,14 +242,15 @@ def get_plotly_world_map_trace():
     return world_map_trace
 
 
-def get_plotly_map(graph: nx.Graph, self_loop: bool = False):
+def get_plotly_map(graph: nx.Graph, self_loop: bool = False, node_traces: list=None, edge_traces: list=None):
     import plotly.graph_objects as go
 
     if not self_loop:
         graph.remove_edges_from(nx.selfloop_edges(graph))
-
-    node_traces = get_plotly_node_traces(graph)
-    edge_traces = get_plotly_edge_traces(graph, self_loop)
+    if node_traces is None:
+        node_traces = get_plotly_node_traces(graph)
+    if edge_traces is None:
+        edge_traces = get_plotly_edge_traces(graph, self_loop)
     world_map_trace = get_plotly_world_map_trace()
     traces = edge_traces + node_traces + [world_map_trace]
 
