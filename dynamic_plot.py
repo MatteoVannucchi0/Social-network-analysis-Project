@@ -1,4 +1,6 @@
-from dash import dcc, html, Dash
+import networkx as nx
+import pandas as pd
+from dash import dcc, html, Dash, dash_table
 from dash.dependencies import Input, Output, State
 
 from graph_analysis import get_map_for_measure
@@ -78,6 +80,11 @@ app.layout = html.Div([
                         ),
                     ], style={'width': '50%', 'display': 'inline-block', 'verticalAlign': 'top'})
                 ], style={'display': 'flex', 'justifyContent': 'center', 'width': '60%', 'margin': '0 auto'}),
+
+                # Add a vertical space
+                html.Div(style={'height': '50px'}),
+                # Add a table
+                dash_table.DataTable(id="table", style_table={'width': '50%', 'margin': 'auto'}, style_cell={'textAlign': 'center'},)
             ], style={'textAlign': 'center', 'width': '60%', 'margin': 'auto'})
         ], style={'display': 'flex', 'justifyContent': 'center'}),
     ], style={'textAlign': 'center', 'width': '100%', 'margin': 'auto'}),
@@ -106,6 +113,8 @@ app.layout = html.Div([
 @app.callback(
     Output('interactive-graph', 'figure'),
     Output('title', 'children'),
+    Output('table', 'columns'),
+    Output('table', 'data'),
     Input('year-slider', 'value'),
     Input('quantile-slider', 'value'),
     Input("measure-selection", "value"),
@@ -121,7 +130,17 @@ def display_map_interactive_plotly(year, quantile, measure, map_type):
         fig = get_map_for_measure(graph, measure)
         title = f"Interactive map for year {year} with quantile {quantile} and measure {measure}"
 
-    return fig, title
+
+    # CLustering
+    average_clustering = nx.average_clustering(graph, weight='weight')
+
+    df = pd.DataFrame({
+        "Measure": ["Average clustering"],
+        "Value": [average_clustering]
+    })
+    table_title = [{"name": i, "id": i} for i in df.columns]
+
+    return fig, title, table_title, df.to_dict('records')
 
 
 @app.callback(
