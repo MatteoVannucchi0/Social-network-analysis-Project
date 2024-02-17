@@ -6,20 +6,60 @@ import numpy as np
 from graph_creation import load_graph_for, get_plotly_node_traces, get_plotly_map, get_plotly_edge_traces
 
 
-def clustering(graph: nx.Graph) -> None:
+def dominating_set(graph: nx.Graph) -> set:
     """
-    Compute the clustering of a graph
+    Compute the dominating set of a graph
     """
-    average_clustering = nx.average_clustering(graph, weight='weight')
-    return average_clustering
+    dominating_set_nodes = nx.algorithms.approximation.min_weighted_dominating_set(graph)
+    print(dominating_set_nodes)
 
-def clustering_coefficient(graph: nx.Graph, node: 'str') -> None:
-    """
-    Compute the clustering of a graph
-    """
-    node_clustering = nx.clustering(graph, weight='weight')
-    return node_clustering
+    def node_kwargs(node):
+        return dict(
+            marker=dict(
+                size=14 if node in dominating_set_nodes else 8,
+                cmin=0,
+                reversescale=True,
+                autocolorscale=False,
+                color='red' if node in dominating_set_nodes else 'gray'
+            ))
 
+    def edge_kwargs(edge):
+        source, target = edge
+        return dict(
+            line=dict(
+                color='yellow' if source in dominating_set_nodes and target in dominating_set_nodes else 'lightgray',
+                width=0 if source in dominating_set_nodes and target in dominating_set_nodes else 0)
+        )
+
+    return dominating_set, node_kwargs, edge_kwargs
+
+def core_periphery_decomposition(graph: nx.Graph, k=None) -> dict[str, str]:
+    """
+    Compute the core-periphery decomposition of a graph
+    """
+    graph.remove_edges_from(nx.selfloop_edges(graph))
+    core_periphery = nx.algorithms.k_core(graph, k)
+    core_nodes = core_periphery.nodes
+    print(core_nodes)
+
+    def node_kwargs(node):
+        return dict(
+            marker=dict(
+                size=14 if node in core_nodes else 8,
+                cmin=0,
+                reversescale=True,
+                autocolorscale=False,
+                color='red' if node in core_nodes else 'gray'
+            ))
+    def edge_kwargs(edge):
+        source, target = edge
+        return dict(
+            line=dict(
+                color='lightgray' if source in core_nodes and target in core_nodes else 'white',
+                width=1 if source in core_nodes and target in core_nodes else 0)
+        )
+
+    return core_periphery, node_kwargs, edge_kwargs
 
 def convert_weight(graph: nx.Graph, func) -> None:
     """
@@ -160,6 +200,19 @@ def get_map_clique(graph: nx.Graph) -> None:
     fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
     return fig
 
+def get_map_dominating_set(graph: nx.Graph):
+    dominating_set_nodes, node_kwargs, edge_kwargs = dominating_set(graph)
+    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
+    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
+    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
+    return fig
+
+def get_map_core_periphery(graph: nx.Graph):
+    k_components, node_kwargs, edge_kwargs = core_periphery_decomposition(graph)
+    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
+    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
+    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
+    return fig
 
 def get_map_k_components(graph: nx.Graph) -> None:
     """
@@ -218,5 +271,13 @@ def get_map_for_measure(graph: nx.graph, measure: str) -> None:
             return get_map_k_components(graph)
         case "clique":
             return get_map_clique(graph)
+        case "core-periphery":
+            return get_map_core_periphery(graph)
+        case "dominating-set":
+            return get_map_dominating_set(graph)
         case _:
             raise ValueError(f"Measure {measure} not recognized")
+
+G = load_graph_for(1994, quantile=.5)
+fig = get_map_for_measure(G, "dominating-set")
+fig.show()
