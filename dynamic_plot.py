@@ -41,7 +41,7 @@ louvain_slider = html.Div(id='louvain-slider-container', children=[
 
 sliders_components = html.Div([
     html.Div([
-        html.Label('Select the year'),
+        html.Label('Year slider'),
         dcc.Slider(
             id='year-slider',
             min=1979,  # Extract minimum year from data
@@ -52,14 +52,14 @@ sliders_components = html.Div([
         ),
     ], style={'textAlign': 'center', 'width': '60%', 'margin': 'auto'}),
     html.Div([
-        html.Label('Select the quantile'),
+        html.Label('Top % of relationship taken'),
         dcc.Slider(
             id='quantile-slider',
             min=0,
-            max=1,
-            value=0.8,
-            marks={str(quantile): f"{quantile:0.2f}" for quantile in [0, 0.2, 0.4, 0.6, 0.8, 1.0]},
-            step=0.01,
+            max=100,
+            value=20,
+            marks={str(quantile): f"{quantile}%" for quantile in [0, 20, 40, 60, 80, 100]},
+            step=1,
             tooltip={'placement': 'bottom', 'always_visible': True}
         ),
     ], style={'textAlign': 'center', 'width': '40%', 'margin': 'auto'}),
@@ -67,7 +67,7 @@ sliders_components = html.Div([
 
 select_components = html.Div([
     html.Div([
-        html.H3('Select the measure', style={'textAlign': 'center'}),
+        html.H3('Measure displayed', style={'textAlign': 'center'}),
         dcc.Dropdown(
             id="measure-selection",
             options=[
@@ -92,7 +92,7 @@ select_components = html.Div([
     ], style={'width': '50%', 'display': 'inline-block', 'verticalAlign': 'top'}),
 
     html.Div([
-        html.H3('Select the map type', style={'textAlign': 'center'}),
+        html.H3('Map displayed', style={'textAlign': 'center'}),
         dcc.Dropdown(
             id="map-selection",
             options=[
@@ -129,6 +129,7 @@ app.layout = html.Div([
                 # Add a vertical space
                 html.Div(style={'height': '50px'}),
                 # Add a table
+                html.H3('Selection data table', style={'textAlign': 'center'}),
                 table_component
             ], style={'textAlign': 'center', 'width': '60%', 'margin': 'auto'})
         ], style={'display': 'flex', 'justifyContent': 'center'}),
@@ -168,25 +169,21 @@ app.layout = html.Div([
     Input("louvain-slider", "value"),
 )
 def display_map_interactive_plotly(year, quantile, measure, map_type, k_components, louvain_resolution):
-    graph = load_graph_for(year, quantile, map_type)
+    graph = load_graph_for(year, (1 - quantile / 100), map_type)
     if measure == "none":
         fig = get_plotly_map(graph, self_loop=False)
-        title = f"Interactive map for year {year} with quantile {quantile}"
+        title = f"Interactive map for year {year} taking top {quantile}% relationship"
     else:
         fig = get_map_for_measure(graph, measure, k_components=k_components,
                                   louvain_resolution=louvain_resolution)
-        title = f"Interactive map for year {year} with quantile {quantile} and measure {measure}"
+        title = f"Interactive map for year {year} taking top {quantile}% relationship event and measure {measure}"
 
     # CLustering
     average_clustering = nx.average_clustering(graph, weight='weight')
-    # average_neighbor_degree = nx.average_neighbor_degree(graph, weight='weight')
-    # average_degree_connectivity = nx.average_degree_connectivity(graph, weight='weight')
-    small_world_sigma = 0  # nx.sigma(graph)
-    small_world_omega = 0  # nx.omega(graph)
 
     df = pd.DataFrame({
-        "Measure": ["Average clustering", "Average neighbor degree", "Average degree connectivity"],
-        "Value": [average_clustering, small_world_sigma, small_world_omega]
+        "Measure": ["Average clustering"],
+        "Value": [average_clustering]
     })
     table_title = [{"name": i, "id": i} for i in df.columns]
 
@@ -238,7 +235,9 @@ def animate(n_intervals, value):
 def play(n, playing):
     if n:
         return not playing
+
     return playing
+
 
 
 if __name__ == '__main__':

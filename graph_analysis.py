@@ -1,66 +1,10 @@
-import collections
+import typing
 
 import networkx as nx
 import numpy as np
 import plotly.graph_objects as go
 
 from graph_creation import get_plotly_node_traces, get_plotly_map, get_plotly_edge_traces
-
-
-def dominating_set(graph: nx.Graph) -> set:
-    """
-    Compute the dominating set of a graph
-    """
-    dominating_set_nodes = nx.algorithms.approximation.min_weighted_dominating_set(graph)
-
-    def node_kwargs(node):
-        return dict(
-            marker=dict(
-                size=14 if node in dominating_set_nodes else 8,
-                cmin=0,
-                reversescale=True,
-                autocolorscale=False,
-                color='red' if node in dominating_set_nodes else 'gray'
-            ))
-
-    def edge_kwargs(edge):
-        source, target = edge
-        return dict(
-            line=dict(
-                color='yellow' if source in dominating_set_nodes and target in dominating_set_nodes else 'lightgray',
-                width=0 if source in dominating_set_nodes and target in dominating_set_nodes else 0)
-        )
-
-    return dominating_set, node_kwargs, edge_kwargs
-
-
-def core_periphery_decomposition(graph: nx.Graph, k=None) -> dict[str, str]:
-    """
-    Compute the core-periphery decomposition of a graph
-    """
-    graph.remove_edges_from(nx.selfloop_edges(graph))
-    core_periphery = nx.algorithms.k_core(graph, k)
-    core_nodes = core_periphery.nodes
-
-    def node_kwargs(node):
-        return dict(
-            marker=dict(
-                size=14 if node in core_nodes else 8,
-                cmin=0,
-                reversescale=True,
-                autocolorscale=False,
-                color='red' if node in core_nodes else 'gray'
-            ))
-
-    def edge_kwargs(edge):
-        source, target = edge
-        return dict(
-            line=dict(
-                color='lightgray' if source in core_nodes and target in core_nodes else 'white',
-                width=1 if source in core_nodes and target in core_nodes else 0)
-        )
-
-    return core_periphery, node_kwargs, edge_kwargs
 
 
 def convert_weight(graph: nx.Graph, func):
@@ -71,7 +15,8 @@ def convert_weight(graph: nx.Graph, func):
         data['weight'] = func(data['weight'])
 
 
-def compute_centrality(graph: nx.Graph, centrality: str = "degree") -> dict[str, float] | None:
+def compute_centrality(graph: nx.Graph, centrality: str = "degree", **kwargs) -> typing.Tuple[
+    dict[str, float], typing.Callable]:
     """
     Compute the centrality of a graph
     """
@@ -89,6 +34,8 @@ def compute_centrality(graph: nx.Graph, centrality: str = "degree") -> dict[str,
         centralities = {k: v / max_centrality for k, v in centralities.items()}
     elif centrality == "katz":
         centralities = nx.katz_centrality(graph, weight="weight")
+    elif centrality == "betweenness":
+        centralities = nx.betweenness_centrality(graph, weight="weight")
 
     def compute_kwargs(node):
         return dict(
@@ -109,7 +56,7 @@ def compute_centrality(graph: nx.Graph, centrality: str = "degree") -> dict[str,
     return centralities, compute_kwargs
 
 
-def compute_clique(graph: nx.Graph) -> set:
+def compute_clique(graph: nx.Graph, **kwargs) -> typing.Tuple[dict[str, float], typing.Callable, typing.Callable]:
     """
     Compute the cliques of a graph
     """
@@ -136,7 +83,8 @@ def compute_clique(graph: nx.Graph) -> set:
     return max_clique, node_kwargs, edge_kwargs
 
 
-def compute_k_components(graph: nx.Graph, k=3) -> collections.defaultdict:
+def compute_k_components(graph: nx.Graph, k=3, **kwargs) -> typing.Tuple[
+    dict[str, float], typing.Callable, typing.Callable]:
     """
     Compute the cliques of a graph
     """
@@ -183,55 +131,66 @@ def compute_k_components(graph: nx.Graph, k=3) -> collections.defaultdict:
     return components, node_kwargs, edge_kwargs
 
 
-def get_map_centrality(graph: nx.Graph, centrality: str = "degree", **kwargs):
+def compute_core_periphery(graph: nx.Graph, periphery_k: int = 3, **kwargs) \
+        -> typing.Tuple[dict[str, float], typing.Callable, typing.Callable]:
     """
-    Compute the cliques of a graph
+    Compute the core-periphery decomposition of a graph
     """
-    centrality, centrality_kwargs = compute_centrality(graph, centrality)
-    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=centrality_kwargs)
-    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=[])
-    return fig
+    graph.remove_edges_from(nx.selfloop_edges(graph))
+    core_periphery = nx.algorithms.k_core(graph, periphery_k)
+    core_nodes = core_periphery.nodes
+
+    def node_kwargs(node):
+        return dict(
+            marker=dict(
+                size=14 if node in core_nodes else 8,
+                cmin=0,
+                reversescale=True,
+                autocolorscale=False,
+                color='red' if node in core_nodes else 'gray'
+            ))
+
+    def edge_kwargs(edge):
+        source, target = edge
+        return dict(
+            line=dict(
+                color='lightgray' if source in core_nodes and target in core_nodes else 'white',
+                width=1 if source in core_nodes and target in core_nodes else 0)
+        )
+
+    return core_periphery, node_kwargs, edge_kwargs
 
 
-def get_map_clique(graph: nx.Graph, **kwargs) -> go.Figure:
+def compute_dominating_set(graph: nx.Graph, **kwargs) -> typing.Tuple[
+    dict[str, float], typing.Callable, typing.Callable]:
     """
-    Compute the cliques of a graph
+    Compute the dominating set of a graph
     """
-    max_clique, node_kwargs, edge_kwargs = compute_clique(graph)
-    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
-    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
-    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
-    return fig
+    dominating_set_nodes = nx.algorithms.approximation.min_weighted_dominating_set(graph)
+
+    def node_kwargs(node):
+        return dict(
+            marker=dict(
+                size=14 if node in dominating_set_nodes else 8,
+                cmin=0,
+                reversescale=True,
+                autocolorscale=False,
+                color='red' if node in dominating_set_nodes else 'gray'
+            ))
+
+    def edge_kwargs(edge):
+        source, target = edge
+        return dict(
+            line=dict(
+                color='yellow' if source in dominating_set_nodes and target in dominating_set_nodes else 'lightgray',
+                width=0 if source in dominating_set_nodes and target in dominating_set_nodes else 0)
+        )
+
+    return dominating_set_nodes, node_kwargs, edge_kwargs
 
 
-def get_map_dominating_set(graph: nx.Graph, **kwargs) -> go.Figure:
-    dominating_set_nodes, node_kwargs, edge_kwargs = dominating_set(graph)
-    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
-    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
-    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
-    return fig
-
-
-def get_map_core_periphery(graph: nx.Graph, periphery_k: int = 3, **kwargs) -> go.Figure:
-    k_components, node_kwargs, edge_kwargs = core_periphery_decomposition(graph, periphery_k)
-    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
-    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
-    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
-    return fig
-
-
-def get_map_k_components(graph: nx.Graph, k_components=3, **kwargs) -> go.Figure:
-    """
-    Compute the cliques of a graph
-    """
-    k_components, node_kwargs, edge_kwargs = compute_k_components(graph, k_components)
-    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
-    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
-    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
-    return fig
-
-
-def get_map_community(graph: nx.Graph, algorithm="louvain", louvain_resolution=0.7, **kwargs) -> go.Figure:
+def compute_community(graph: nx.Graph, algorithm="louvain", louvain_resolution=0.7, **kwargs) \
+        -> typing.Tuple[dict[str, float], typing.Callable]:
     """
     Compute the cliques of a graph
     """
@@ -258,19 +217,16 @@ def get_map_community(graph: nx.Graph, algorithm="louvain", louvain_resolution=0
                 )
         return dict(marker=dict(color="gray"))
 
-    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
-    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=[])
-    return fig
+    return x, node_kwargs
 
 
-def get_map_page_rank(graph: nx.Graph, **kwargs) -> go.Figure:
+def compute_page_rank(graph: nx.Graph, **kwargs) -> typing.Tuple[dict[str, float], typing.Callable]:
     """
     Compute the cliques of a graph
     """
-
     convert_weight(graph, abs)
 
-    page_rank = nx.pagerank(graph,max_iter=100000, alpha=0.85) # weight="weight",
+    page_rank = nx.pagerank(graph, weight="weight")
 
     def node_kwargs(node):
         return dict(
@@ -287,14 +243,98 @@ def get_map_page_rank(graph: nx.Graph, **kwargs) -> go.Figure:
                 colorbar_title="Page Rank"
             ))
 
+    return page_rank, node_kwargs
+
+
+def get_map_centrality(graph: nx.Graph, centrality: str = "degree", **kwargs):
+    """
+    Compute the cliques of a graph
+    """
+    centrality, centrality_kwargs = compute_centrality(graph, centrality)
+    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=centrality_kwargs)
+    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=[])
+    return fig
+
+
+def get_map_clique(graph: nx.Graph, **kwargs) -> go.Figure:
+    """
+    Compute the cliques of a graph
+    """
+    max_clique, node_kwargs, edge_kwargs = compute_clique(graph)
+    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
+    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
+    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
+    return fig
+
+
+def get_map_k_components(graph: nx.Graph, k_components=3, **kwargs) -> go.Figure:
+    """
+    Compute the cliques of a graph
+    """
+    k_components, node_kwargs, edge_kwargs = compute_k_components(graph, k_components)
+    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
+    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
+    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
+    return fig
+
+
+def get_map_dominating_set(graph: nx.Graph, **kwargs) -> go.Figure:
+    dominating_set_nodes, node_kwargs, edge_kwargs = compute_dominating_set(graph)
+    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
+    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
+    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
+    return fig
+
+
+def get_map_core_periphery(graph: nx.Graph, periphery_k: int = 3, **kwargs) -> go.Figure:
+    k_components, node_kwargs, edge_kwargs = compute_core_periphery(graph, periphery_k)
+    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
+    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
+    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
+    return fig
+
+
+def get_map_community(graph: nx.Graph, algorithm="louvain", louvain_resolution=0.7, **kwargs) -> go.Figure:
+    community, node_kwargs = compute_community(graph, algorithm, louvain_resolution)
     node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
     fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=[])
     return fig
 
 
+def get_map_page_rank(graph: nx.Graph, **kwargs) -> go.Figure:
+    """
+    Compute the cliques of a graph
+    """
+
+    page_rank, node_kwargs = compute_page_rank(graph)
+    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
+    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=[])
+    return fig
+
+
+def compute_measure(graph: nx.Graph, measure: str, **kwargs) -> typing.Any:
+    match measure:
+        case "centrality-degree" | "centrality-eigenvector" | "centrality-closeness" | "centrality-katz" | "centrality-betweenness":
+            centrality_measure = measure.split("-")[1]
+            return compute_centrality(graph, centrality_measure)
+        case "community-louvain" | "community-greedy" | "community-label":
+            community_measure = measure.split("-")[1]
+            return compute_community(graph, community_measure, **kwargs)
+        case "k-components":
+            return compute_k_components(graph, **kwargs)
+        case "clique":
+            return compute_clique(graph, **kwargs)
+        case "core-periphery":
+            return compute_core_periphery(graph, **kwargs)
+        case "dominating-set":
+            return compute_dominating_set(graph, **kwargs)
+        case "page-rank":
+            return compute_page_rank(graph, **kwargs)
+        case _:
+            raise ValueError(f"Measure {measure} not recognized")
+
+
 def get_map_for_measure(graph: nx.graph, measure: str, **kwargs) -> go.Figure:
-
-
     match measure:
         # if startswith("centrality"):
         #     return display_centrality
