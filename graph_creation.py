@@ -71,6 +71,9 @@ def load_graph_for(year: int, quantile=0.9, map_type: typing.Literal["all", "onl
         graph.add_edge(source, target, weight=weight, line_width=line_width, alpha=alpha)
 
     clustering_coefficients = nx.clustering(graph, weight='weight')
+
+    # We cannot compute assortativity since our graph is not directed
+    # degree_assortativity_coefficient = nx.degree_assortativity_coefficient(graph, weight='weight')
     # small_worldness_sigma = nx.algorithms.smallworld.sigma(graph, niter=1, nrand=10)
     # small_worldness_omega = nx.algorithms.smallworld.omega(graph, niter=1, nrand=10)
     degree = dict(graph.degree())

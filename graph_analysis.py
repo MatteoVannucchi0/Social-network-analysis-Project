@@ -2,6 +2,7 @@ import collections
 
 import networkx as nx
 import numpy as np
+import plotly.graph_objects as go
 
 from graph_creation import load_graph_for, get_plotly_node_traces, get_plotly_map, get_plotly_edge_traces
 
@@ -11,7 +12,6 @@ def dominating_set(graph: nx.Graph) -> set:
     Compute the dominating set of a graph
     """
     dominating_set_nodes = nx.algorithms.approximation.min_weighted_dominating_set(graph)
-    print(dominating_set_nodes)
 
     def node_kwargs(node):
         return dict(
@@ -40,7 +40,6 @@ def core_periphery_decomposition(graph: nx.Graph, k=None) -> dict[str, str]:
     graph.remove_edges_from(nx.selfloop_edges(graph))
     core_periphery = nx.algorithms.k_core(graph, k)
     core_nodes = core_periphery.nodes
-    print(core_nodes)
 
     def node_kwargs(node):
         return dict(
@@ -201,11 +200,27 @@ def get_map_clique(graph: nx.Graph) -> None:
     return fig
 
 
-def get_map_k_components(graph: nx.Graph) -> None:
+def get_map_dominating_set(graph: nx.Graph):
+    dominating_set_nodes, node_kwargs, edge_kwargs = dominating_set(graph)
+    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
+    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
+    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
+    return fig
+
+
+def get_map_core_periphery(graph: nx.Graph, k: int) -> go.Figure:
+    k_components, node_kwargs, edge_kwargs = core_periphery_decomposition(graph, k)
+    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
+    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
+    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
+    return fig
+
+
+def get_map_k_components(graph: nx.Graph, k) -> go.Figure:
     """
     Compute the cliques of a graph
     """
-    k_components, node_kwargs, edge_kwargs = compute_k_components(graph)
+    k_components, node_kwargs, edge_kwargs = compute_k_components(graph, k)
     node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
     edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
     fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
@@ -244,7 +259,7 @@ def get_map_community(graph: nx.Graph, algorithm="louvain") -> None:
     return fig
 
 
-def get_map_for_measure(graph: nx.graph, measure: str) -> None:
+def get_map_for_measure(graph: nx.graph, measure: str, k) -> go.Figure:
     match measure:
         # if startswith("centrality"):
         #     return display_centrality
@@ -255,11 +270,11 @@ def get_map_for_measure(graph: nx.graph, measure: str) -> None:
             community_measure = measure.split("-")[1]
             return get_map_community(graph, community_measure)
         case "k-components":
-            return get_map_k_components(graph)
+            return get_map_k_components(graph, k)
         case "clique":
             return get_map_clique(graph)
         case "core-periphery":
-            return get_map_core_periphery(graph)
+            return get_map_core_periphery(graph, k)
         case "dominating-set":
             return get_map_dominating_set(graph)
         case _:

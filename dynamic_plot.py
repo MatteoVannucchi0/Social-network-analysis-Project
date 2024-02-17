@@ -41,8 +41,20 @@ app.layout = html.Div([
                             step=0.01,
                             tooltip={'placement': 'bottom', 'always_visible': True}
                         ),
-                    ], style={'textAlign': 'center', 'width': '60%', 'margin': 'auto'}),
+                    ], style={'textAlign': 'center', 'width': '40%', 'margin': 'auto'}),
                 ], style={'margin-bottom': '20px'}),
+                # Create Div to place a conditionally visible element inside
+                html.Div(id='k-slider-container', children=[
+
+                    # Create element to hide/show, in this case a slider
+                    dcc.Slider(id='k-slider',
+                               min=1,
+                               max=20,
+                               step=1,
+                               value=5,
+                               marks={str(i): str(i) for i in range(1,20)})
+
+                ], style={'display': 'block', 'textAlign': 'center', 'width': '60%', 'margin': 'auto'}, hidden=True), # <-- This is the line that will be changed by the dropdown callback
 
                 # Select
                 html.Div([
@@ -62,6 +74,9 @@ app.layout = html.Div([
                                 {'label': 'community-louvain', 'value': 'community-louvain'},
                                 {'label': 'community-greedy', 'value': 'community-greedy'},
                                 {'label': 'community-label', 'value': 'community-label'},
+                                {'label': 'dominating-set', 'value': 'dominating-set'},
+                                {'label': 'core-periphery', 'value': 'core-periphery'},
+
                             ],
                             value='none',
                         ),
@@ -119,29 +134,43 @@ app.layout = html.Div([
     Input('quantile-slider', 'value'),
     Input("measure-selection", "value"),
     Input("map-selection", "value"),
+    Input("k-slider", "value"),
 )
-def display_map_interactive_plotly(year, quantile, measure, map_type):
+def display_map_interactive_plotly(year, quantile, measure, map_type, k):
     graph = load_graph_for(year, quantile, map_type)
-    print()
     if measure == "none":
         fig = get_plotly_map(graph, self_loop=False)
         title = f"Interactive map for year {year} with quantile {quantile}"
     else:
-        fig = get_map_for_measure(graph, measure)
+        fig = get_map_for_measure(graph, measure, k)
         title = f"Interactive map for year {year} with quantile {quantile} and measure {measure}"
 
 
     # CLustering
     average_clustering = nx.average_clustering(graph, weight='weight')
+    #average_neighbor_degree = nx.average_neighbor_degree(graph, weight='weight')
+    #average_degree_connectivity = nx.average_degree_connectivity(graph, weight='weight')
+    small_world_sigma = 0#nx.sigma(graph)
+    small_world_omega = 0#nx.omega(graph)
 
     df = pd.DataFrame({
-        "Measure": ["Average clustering"],
-        "Value": [average_clustering]
+        "Measure": ["Average clustering", "Average neighbor degree", "Average degree connectivity"],
+        "Value": [average_clustering,small_world_sigma, small_world_omega]
     })
     table_title = [{"name": i, "id": i} for i in df.columns]
 
     return fig, title, table_title, df.to_dict('records')
 
+@app.callback(
+    Output(component_id='k-slider-container', component_property='style'),
+    [Input(component_id='measure-selection', component_property='value')]
+)
+def show_hide_element(measure):
+    k_measures = ['k-components', 'core-periphery']
+    if measure in k_measures:
+        return {'display': 'block'}
+    if measure not in k_measures:
+        return {'display': 'none'}
 
 @app.callback(
     Output('year-slider', 'value'),
