@@ -61,7 +61,7 @@ def core_periphery_decomposition(graph: nx.Graph, k=None) -> dict[str, str]:
 
     return core_periphery, node_kwargs, edge_kwargs
 
-def convert_weight(graph: nx.Graph, func) -> None:
+def convert_weight(graph: nx.Graph, func):
     """
     Convert the weight of a graph
     """
@@ -200,19 +200,6 @@ def get_map_clique(graph: nx.Graph) -> None:
     fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
     return fig
 
-def get_map_dominating_set(graph: nx.Graph):
-    dominating_set_nodes, node_kwargs, edge_kwargs = dominating_set(graph)
-    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
-    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
-    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
-    return fig
-
-def get_map_core_periphery(graph: nx.Graph):
-    k_components, node_kwargs, edge_kwargs = core_periphery_decomposition(graph)
-    node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
-    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
-    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
-    return fig
 
 def get_map_k_components(graph: nx.Graph) -> None:
     """
@@ -277,7 +264,3 @@ def get_map_for_measure(graph: nx.graph, measure: str) -> None:
             return get_map_dominating_set(graph)
         case _:
             raise ValueError(f"Measure {measure} not recognized")
-
-G = load_graph_for(1994, quantile=.5)
-fig = get_map_for_measure(G, "dominating-set")
-fig.show()

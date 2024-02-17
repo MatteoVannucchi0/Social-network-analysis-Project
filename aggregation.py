@@ -1,4 +1,5 @@
 import os
+import typing
 
 import numpy as np
 import pandas as pd
@@ -32,10 +33,15 @@ aggregated_path.mkdir(exist_ok=True)
 #     return filtered_df
 
 
-def aggregate_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+def aggregate_dataframe(df: pd.DataFrame, map_type: typing.Literal["all", "only_positive", "only_negative"]) -> pd.DataFrame:
     # Filter out entities with a value count less than the threshold
     # df_filtered = filter_entities(df)
-    df_filtered = df
+    if map_type == "only_positive":
+        df_filtered = df[df["Goldstein"] > 0]
+    elif map_type == "only_negative":
+        df_filtered = df[df["Goldstein"] < 0]
+    else:
+        df_filtered = df
 
     replicated_df = df_filtered.loc[df_filtered.index.repeat(df_filtered["NumEvents"])].reset_index(drop=True).drop(columns=["NumEvents"])
 
@@ -53,8 +59,8 @@ def aggregate_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return aggregated_df
 
 
-def load_dataset(year:int, quantile:float = 0.8) -> pd.DataFrame:
-    df = pd.read_csv(aggregated_path / f"aggregated_{year}.csv")
+def load_dataset(year:int, quantile:float = 0.8, map_type: typing.Literal["all", "only_positive", "only_negative"] = "all") -> pd.DataFrame:
+    df = pd.read_csv(aggregated_path / f"aggregated_{map_type}_{year}.csv")
     # Take the pairs in the top 15% percent in terms of number of events
     PAIR_COUNT_MIN_THRESHOLD = df["Goldstein_count"].quantile(quantile, interpolation='higher')
     df = df[df["Goldstein_count"] > PAIR_COUNT_MIN_THRESHOLD]
@@ -66,17 +72,18 @@ def aggregate_data():
     for file in os.listdir(preprocessed_path):
         year = int(file.split("_")[1].split(".")[0])
 
-        if (aggregated_path / f"aggregated_{year}.csv").exists():
-            print(f"File aggregated_{year}.csv already exists, skipping file {file}")
-            continue
-        try:
-            if file.endswith(".csv"):
-                df = pd.read_csv(preprocessed_path / file)
-                aggregate_df = aggregate_dataframe(df)
-                aggregate_df.to_csv(aggregated_path / f"aggregated_{year}.csv", index=False)
-        except Exception as e:
-            print(f"Error in preprocessing {file} for year {year}: {e}")
-            raise e
+        for map_type in ["all", "only_positive", "only_negative"]:
+            if (aggregated_path / f"aggregated_{map_type}_{year}.csv").exists():
+                print(f"File aggregated_{year}.csv already exists, skipping file {file}")
+                continue
+            try:
+                if file.endswith(".csv"):
+                    df = pd.read_csv(preprocessed_path / file)
+                    aggregate_df = aggregate_dataframe(df, map_type)
+                    aggregate_df.to_csv(aggregated_path / f"aggregated_{map_type}_{year}.csv", index=False)
+            except Exception as e:
+                print(f"Error in preprocessing {file} for year {year}: {e}")
+                raise e
 
 
 if __name__ == "__main__":

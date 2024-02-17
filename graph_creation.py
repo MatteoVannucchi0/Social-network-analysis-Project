@@ -23,8 +23,9 @@ def geocode(node):
         return (0, 0)
 
 
-def load_graph_for(year: int, quantile=0.9, include_international_orgs: bool = False) -> nx.Graph:
-    df = load_dataset(year, quantile)
+def load_graph_for(year: int, quantile=0.9, map_type: typing.Literal["all", "only_positive", "only_negative"] = "all",
+                   include_international_orgs: bool = False) -> nx.Graph:
+    df = load_dataset(year, quantile, map_type)
 
     if not include_international_orgs:
         df = df[df['Source code'].isin(GEOCODE_DICT.keys()) & df['Target code'].isin(GEOCODE_DICT.keys())]
@@ -68,6 +69,15 @@ def load_graph_for(year: int, quantile=0.9, include_international_orgs: bool = F
         alpha = 0.35
 
         graph.add_edge(source, target, weight=weight, line_width=line_width, alpha=alpha)
+
+    clustering_coefficients = nx.clustering(graph, weight='weight')
+    # small_worldness_sigma = nx.algorithms.smallworld.sigma(graph, niter=1, nrand=10)
+    # small_worldness_omega = nx.algorithms.smallworld.omega(graph, niter=1, nrand=10)
+    degree = dict(graph.degree())
+
+    for node in graph.nodes:
+        graph.nodes[node]['clustering_coefficient'] = clustering_coefficients[node]
+        graph.nodes[node]['degree'] = degree[node]
 
     return graph
 
@@ -179,6 +189,10 @@ def get_plotly_node_traces(graph: nx.Graph, get_scatter_geo_kwargs: Callable[[ty
     for node in graph.nodes:
         latitude, longitude = geocode(node)
 
+        # get nodes attributes
+        hovertext = f"Node: {node}<br>"
+        hovertext += "<br>".join([f"{k}: {v:.3f}" for k, v in graph.nodes[node].items()])
+
         default_kwargs = {
             "lon": [latitude],
             "lat": [longitude],
@@ -186,7 +200,9 @@ def get_plotly_node_traces(graph: nx.Graph, get_scatter_geo_kwargs: Callable[[ty
             "textposition": "top left",
             "textfont": dict(size=12, color='black'),
             "text": node,
-            "marker": dict(size=8, color='blue')
+            "marker": dict(size=8, color='blue'),
+            "hoverinfo": 'text',
+            "hovertext": hovertext, #f'Node: {node}<br>Clustering Coefficient: {clustering_coefficients[node]:.2f}<br>Degree: {degree[node]}'
         }
 
         if get_scatter_geo_kwargs:
