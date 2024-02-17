@@ -5,6 +5,7 @@ from typing import Callable
 import networkx as nx
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 
 from aggregation import load_dataset
 
@@ -91,6 +92,8 @@ def load_graph_for(year: int, quantile=0.9, map_type: typing.Literal["all", "onl
 
         if map_type == "only_negative":
             weight = -1 * weight
+
+        alpha = 0.35
 
 
         graph.add_edge(source, target, weight=weight, line_width=line_width, alpha=alpha)
