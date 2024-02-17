@@ -117,7 +117,19 @@ app.layout = html.Div([
             graph_component,
 
             # Vertical column for the sliders and dropdowns
+
+
             html.Div([
+                dcc.Dropdown(
+                    id="method-selection",
+                    options=[
+                        {'label': 'Sum', 'value': 'sum'},
+                        {'label': 'Mean', 'value': 'mean'},
+                        {'label': 'Mixed', 'value': 'mixed'},
+                    ],
+                    value='sum',
+                ),
+
                 # Sliders
                 sliders_components,
                 k_components_slider,
@@ -167,9 +179,11 @@ app.layout = html.Div([
     Input("map-selection", "value"),
     Input("k-slider", "value"),
     Input("louvain-slider", "value"),
+    Input('method-selection', 'value'),
 )
-def display_map_interactive_plotly(year, quantile, measure, map_type, k_components, louvain_resolution):
-    graph = load_graph_for(year, (1 - quantile / 100), map_type)
+def display_map_interactive_plotly(year, quantile, measure, map_type, k_components, louvain_resolution,
+                                   method_selection):
+    graph = load_graph_for(year, (1 - quantile / 100), map_type, method=method_selection)
     if measure == "none":
         fig = get_plotly_map(graph, self_loop=False)
         title = f"Interactive map for year {year} taking top {quantile}% relationship"

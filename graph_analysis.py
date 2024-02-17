@@ -35,7 +35,11 @@ def compute_centrality(graph: nx.Graph, centrality: str = "degree", **kwargs) ->
     elif centrality == "katz":
         centralities = nx.katz_centrality(graph, weight="weight")
     elif centrality == "betweenness":
+        min_value = min([data['weight'] for _, _, data in graph.edges(data=True)])
+        convert_weight(graph, lambda x: 1 / (x - min_value + 0.01))
         centralities = nx.betweenness_centrality(graph, weight="weight")
+        max_centrality = max(centralities.values())
+        centralities = {k: v / max_centrality for k, v in centralities.items()}
 
     def compute_kwargs(node):
         return dict(
@@ -262,8 +266,8 @@ def get_map_clique(graph: nx.Graph, **kwargs) -> go.Figure:
     """
     max_clique, node_kwargs, edge_kwargs = compute_clique(graph)
     node_traces = get_plotly_node_traces(graph, get_scatter_geo_kwargs=node_kwargs)
-    edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
-    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=edge_traces)
+    # edge_traces = get_plotly_edge_traces(graph, get_scatter_geo_kwargs=edge_kwargs)
+    fig = get_plotly_map(graph, node_traces=node_traces, edge_traces=[])
     return fig
 
 

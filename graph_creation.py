@@ -5,7 +5,6 @@ from typing import Callable
 import networkx as nx
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
 
 from aggregation import load_dataset
 
@@ -24,7 +23,7 @@ def geocode(node):
 
 
 def load_graph_for(year: int, quantile=0.9, map_type: typing.Literal["all", "only_positive", "only_negative"] = "all",
-                   include_international_orgs: bool = False) -> nx.Graph:
+                   include_international_orgs: bool = False, method: str = "sum") -> nx.Graph:
     df = load_dataset(year, quantile, map_type)
 
     if not include_international_orgs:
@@ -54,24 +53,44 @@ def load_graph_for(year: int, quantile=0.9, map_type: typing.Literal["all", "onl
         if first["count"] == 0 and second["count"] == 0:
             continue
 
-        sum_ = (first["sum"] * first["count"] + second["sum"] * second["count"]) / (first["count"] + second["count"])
-
-        nation_total = nation_total_count[source] + nation_total_count[target]
-        divisor = 0.005 * nation_total + 0.0005 * total_count
-
-        # If the map type is negative all the weights are negative, so we convert them to positive
-        weight = (sum_ / divisor)
-
-        # Just for visual clarity
         log_threshold = 30
-        line_width = weight
-        if abs(line_width) > log_threshold:
-            line_width = np.sign(line_width) * (log_threshold + np.log10(abs(line_width) - log_threshold + 1))
+        alpha = 0.35
+        if method == "mean":
+            mean_ = (first["mean"] * first["count"] + second["mean"] * second["count"]) / (
+                    first["count"] + second["count"])
+
+            weight = mean_
+            line_width = weight
+        elif method == "sum":
+            sum_ = (first["sum"] * first["count"] + second["sum"] * second["count"]) / (
+                    first["count"] + second["count"])
+            nation_total = nation_total_count[source] + nation_total_count[target]
+            divisor = 0.005 * nation_total + 0.0005 * total_count
+            weight = (sum_ / divisor)
+            line_width = weight
+            if abs(line_width) > log_threshold:
+                line_width = np.sign(line_width) * (log_threshold + np.log10(abs(line_width) - log_threshold + 1))
+        elif method == "mixed":
+            mean_ = (first["mean"] * first["count"] + second["mean"] * second["count"]) / (
+                    first["count"] + second["count"])
+
+            weight = mean_
+
+            sum_ = (first["sum"] * first["count"] + second["sum"] * second["count"]) / (
+                    first["count"] + second["count"])
+            nation_total = nation_total_count[source] + nation_total_count[target]
+            divisor = 0.005 * nation_total + 0.0005 * total_count
+            line_width = (sum_ / divisor)
+            if abs(line_width) > log_threshold:
+                line_width = np.sign(line_width) * (log_threshold + np.log10(abs(line_width) - log_threshold + 1))
+
+        elif method == "mean2":
+            raise ValueError("Method mean2 not implemented")
+        else:
+            raise ValueError(f"Method {method} not recognized")
 
         if map_type == "only_negative":
             weight = -1 * weight
-
-        alpha = 0.35
 
 
         graph.add_edge(source, target, weight=weight, line_width=line_width, alpha=alpha)
@@ -213,7 +232,8 @@ def get_plotly_node_traces(graph: nx.Graph, get_scatter_geo_kwargs: Callable[[ty
             "text": node,
             "marker": dict(size=8, color='blue'),
             "hoverinfo": 'text',
-            "hovertext": hovertext, #f'Node: {node}<br>Clustering Coefficient: {clustering_coefficients[node]:.2f}<br>Degree: {degree[node]}'
+            "hovertext": hovertext,
+            # f'Node: {node}<br>Clustering Coefficient: {clustering_coefficients[node]:.2f}<br>Degree: {degree[node]}'
         }
 
         if get_scatter_geo_kwargs:
