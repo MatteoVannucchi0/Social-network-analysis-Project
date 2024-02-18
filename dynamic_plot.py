@@ -12,6 +12,20 @@ app = Dash(__name__)
 graph_component = dcc.Graph(id='interactive-graph', style={'width': '80%', 'height': '75vh'},
                             config={'displayModeBar': False})
 
+
+method_beta_value_slider = html.Div(id='method-beta-slider-container', children=[
+    html.Label('Select the beta value'),
+    dcc.Slider(id='method-beta-slider',
+               min=0,
+               max=1,
+               step=0.01,
+               value=0.1,
+               marks={str(i): f"{i:.2f}" for i in np.arange(0, 1, 0.1)},
+            )
+
+], style={'display': 'block', 'textAlign': 'center', 'width': '100%', 'margin': 'auto'},
+                          hidden=True)
+
 k_components_slider = html.Div(id='k-slider-container', children=[
     html.Label('Select the number of components'),
     # Create element to hide/show, in this case a slider
@@ -50,7 +64,7 @@ sliders_components = html.Div([
             marks={str(year): str(year) for year in range(1979, 2015, 2)},
             step=1,
         ),
-    ], style={'textAlign': 'center', 'width': '60%', 'margin': 'auto'}),
+    ], style={'textAlign': 'center', 'width': '100%', 'margin': 'auto'}),
     html.Div([
         html.Label('Top % of relationship taken'),
         dcc.Slider(
@@ -62,7 +76,7 @@ sliders_components = html.Div([
             step=1,
             tooltip={'placement': 'bottom', 'always_visible': True}
         ),
-    ], style={'textAlign': 'center', 'width': '40%', 'margin': 'auto'}),
+    ], style={'textAlign': 'center', 'width': '100%', 'margin': 'auto'}),
 ], style={'margin-bottom': '20px'})
 
 select_components = html.Div([
@@ -123,12 +137,14 @@ app.layout = html.Div([
                 dcc.Dropdown(
                     id="method-selection",
                     options=[
+                        {"label": "Relevance weighted average", "value": "relevance_weighted_average"},
                         {'label': 'Sum', 'value': 'sum'},
                         {'label': 'Mean', 'value': 'mean'},
                         {'label': 'Mixed', 'value': 'mixed'},
                     ],
-                    value='sum',
+                    value='relevance_weighted_average',
                 ),
+                method_beta_value_slider,
 
                 # Sliders
                 sliders_components,
@@ -180,10 +196,11 @@ app.layout = html.Div([
     Input("k-slider", "value"),
     Input("louvain-slider", "value"),
     Input('method-selection', 'value'),
+    Input('method-beta-slider', 'value'),
 )
 def display_map_interactive_plotly(year, quantile, measure, map_type, k_components, louvain_resolution,
-                                   method_selection):
-    graph = load_graph_for(year, (1 - quantile / 100), map_type, method=method_selection)
+                                   method_selection, method_beta):
+    graph = load_graph_for(year, (1 - quantile / 100), map_type, method=method_selection, method_beta=method_beta)
     if measure == "none":
         fig = get_plotly_map(graph, self_loop=False)
         title = f"Interactive map for year {year} taking top {quantile}% relationship"
