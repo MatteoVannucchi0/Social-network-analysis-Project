@@ -10,9 +10,9 @@ from plot import get_plotly_map
 
 app = Dash(__name__)
 
-graph_component = dcc.Graph(id='interactive-graph', style={'width': '80%', 'height': '75vh'},
+graph_component = dcc.Graph(id='interactive-graph',
+                            style={'width': '80%', 'height': '75vh', "border": "1px solid black"},
                             config={'displayModeBar': False})
-
 
 method_beta_value_slider = html.Div(id='method-beta-slider-container', children=[
     html.Label('Select the beta value'),
@@ -22,10 +22,10 @@ method_beta_value_slider = html.Div(id='method-beta-slider-container', children=
                step=0.01,
                value=0.1,
                marks={str(i): f"{i:.2f}" for i in np.arange(0, 1, 0.1)},
-            )
+               )
 
-], style={'display': 'block', 'textAlign': 'center', 'width': '100%', 'margin': 'auto'},
-                          hidden=True)
+], style={'display': 'block', 'textAlign': 'center', 'width': '100%', 'margin': 'auto', "padding-top": "10px"},
+                                    hidden=True)
 
 k_components_slider = html.Div(id='k-slider-container', children=[
     html.Label('Select the number of components'),
@@ -41,7 +41,7 @@ k_components_slider = html.Div(id='k-slider-container', children=[
                                hidden=True)  # <-- This is the line that will be changed by the dropdown callback
 
 louvain_slider = html.Div(id='louvain-slider-container', children=[
-# Create element to hide/show, in this case a slider
+    # Create element to hide/show, in this case a slider
     html.Label('Select the resolution'),
     dcc.Slider(id='louvain-slider',
                min=0,
@@ -49,7 +49,7 @@ louvain_slider = html.Div(id='louvain-slider-container', children=[
                step=0.1,
                value=1,
                marks={str(i): str(i) for i in np.arange(0, 5, 0.5)},
-            )
+               )
 
 ], style={'display': 'block', 'textAlign': 'center', 'width': '40%', 'margin': 'auto'},
                           hidden=True)
@@ -82,7 +82,7 @@ sliders_components = html.Div([
 
 select_components = html.Div([
     html.Div([
-        html.H3('Measure displayed', style={'textAlign': 'center'}),
+        html.H4('Measure displayed', style={'textAlign': 'center'}),
         dcc.Dropdown(
             id="measure-selection",
             options=[
@@ -107,7 +107,7 @@ select_components = html.Div([
     ], style={'width': '50%', 'display': 'inline-block', 'verticalAlign': 'top'}),
 
     html.Div([
-        html.H3('Map displayed', style={'textAlign': 'center'}),
+        html.H4('Map displayed', style={'textAlign': 'center'}),
         dcc.Dropdown(
             id="map-selection",
             options=[
@@ -132,35 +132,44 @@ app.layout = html.Div([
             graph_component,
 
             # Vertical column for the sliders and dropdowns
-
-
             html.Div([
-                dcc.Dropdown(
-                    id="method-selection",
-                    options=[
-                        {"label": "Relevance weighted average", "value": "relevance_weighted_average"},
-                        {'label': 'Sum', 'value': 'sum'},
-                        {'label': 'Mean', 'value': 'mean'},
-                        {'label': 'Mixed', 'value': 'mixed'},
-                    ],
-                    value='relevance_weighted_average',
-                ),
-                method_beta_value_slider,
+                html.Div([
+                    html.H2('Method selection', style={'textAlign': 'center'}),
+
+                    dcc.Dropdown(
+                        id="method-selection",
+                        options=[
+                            {"label": "Relevance weighted average", "value": "relevance_weighted_average"},
+                            {'label': 'Sum', 'value': 'sum'},
+                            {'label': 'Mean', 'value': 'mean'},
+                            {'label': 'Mixed', 'value': 'mixed'},
+                        ],
+                        value='relevance_weighted_average',
+                    ),
+                    method_beta_value_slider,
+                ], style={'width': '100%', 'display': 'inline-block', 'verticalAlign': 'top',
+                          "padding-bottom": "25px"}),
 
                 # Sliders
-                sliders_components,
-                k_components_slider,
-                louvain_slider,
+                html.Div([
+                    html.H2('Map value options', style={'textAlign': 'center'}),
+                    sliders_components,
+                    k_components_slider,
+                    louvain_slider,
 
-                # Select
-                select_components,
+                    # Select
+                    select_components,
+
+                ], style={'width': '100%', 'display': 'inline-block', 'verticalAlign': 'top',
+                          "padding-bottom": "25px"}),
 
                 # Add a vertical space
                 html.Div(style={'height': '50px'}),
                 # Add a table
                 html.H3('Selection data table', style={'textAlign': 'center'}),
                 table_component
-            ], style={'textAlign': 'center', 'width': '60%', 'margin': 'auto'})
+            ], style={'textAlign': 'center', 'width': '60%', 'margin': 'auto', "padding": "20px"}),
+            # add a border
         ], style={'display': 'flex', 'justifyContent': 'center'}),
     ], style={'textAlign': 'center', 'width': '100%', 'margin': 'auto'}),
 
@@ -269,7 +278,6 @@ def play(n, playing):
         return not playing
 
     return playing
-
 
 
 if __name__ == '__main__':
