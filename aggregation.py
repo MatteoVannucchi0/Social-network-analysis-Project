@@ -43,7 +43,7 @@ def aggregate_dataframe(df: pd.DataFrame, map_type: typing.Literal["all", "only_
     else:
         df_filtered = df
 
-    replicated_df = df_filtered.loc[df_filtered.index.repeat(df_filtered["NumEvents"])].reset_index(drop=True).drop(columns=["NumEvents"])
+    replicated_df = df_filtered.loc[df_filtered.index.repeat(df_filtered["NumEvents"] + df_filtered["NumArts"])].reset_index(drop=True).drop(columns=["NumEvents", "NumArts"])
 
     # take the mean for the column Goldstein
     aggregated_df = replicated_df.groupby(['Source code', 'Target code']).agg({
@@ -77,6 +77,7 @@ def aggregate_data():
                 print(f"File aggregated_{year}.csv already exists, skipping file {file}")
                 continue
             try:
+                print(f"Aggregating {file} for year {year} and map type {map_type}")
                 if file.endswith(".csv"):
                     df = pd.read_csv(preprocessed_path / file)
                     aggregate_df = aggregate_dataframe(df, map_type)
