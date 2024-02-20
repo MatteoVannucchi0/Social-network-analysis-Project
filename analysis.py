@@ -42,15 +42,14 @@ def compute_centrality(graph: nx.Graph, centrality: str = "degree", **kwargs) \
         centralities = nx.eigenvector_centrality(graph, weight="weight")
     elif centrality == "closeness":
         min_value = min([data['weight'] for _, _, data in graph.edges(data=True)])
-        convert_weight(graph, lambda x: 1 / (x - min_value + 0.01))
+        convert_weight(graph, lambda x: 1 / (x + 1 + 0.00001))
         centralities = nx.closeness_centrality(graph, distance="weight")
         max_centrality = max(centralities.values())
         # centralities = {k: v / max_centrality for k, v in centralities.items()}
     elif centrality == "katz":
         centralities = nx.katz_centrality(graph, weight="weight")
     elif centrality == "betweenness":
-        min_value = min([data['weight'] for _, _, data in graph.edges(data=True)])
-        convert_weight(graph, lambda x: 1 / (x - min_value + 0.01))
+        convert_weight(graph, lambda x: 1 / (x + 1 + 0.00001))
         centralities = nx.betweenness_centrality(graph, weight="weight")
         max_centrality = max(centralities.values())
         # centralities = {k: v / max_centrality for k, v in centralities.items()}
@@ -231,8 +230,6 @@ def compute_community(graph: nx.Graph, algorithm="louvain", louvain_resolution=0
                 size = 16
 
                 node_communities = [str(i) for i, community in enumerate(x) if node in community]
-                print(node_communities)
-
                 return dict(
                     marker=dict(color=f"rgb{color_palette[i]}", size=size),
                     hovertext=f'{node} communities: \n' + ", ".join(node_communities),

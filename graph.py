@@ -35,7 +35,7 @@ def generate_weight_and_line_width(method: str, source: str, target: str, edges:
 
     sum_ = first["sum"] + second["sum"]
     nation_total_count = nation_to_count[source] + nation_to_count[target]
-    nation_total_sum_mean = nation_to_sum[source] + nation_to_sum[target]
+    nation_total_sum_mean = abs(nation_to_sum[source]) + abs(nation_to_sum[target])
 
     weight, line_width, alpha = None, None, 0.35
     if method == "mean":
@@ -51,10 +51,11 @@ def generate_weight_and_line_width(method: str, source: str, target: str, edges:
         line_width = (sum_ / divisor)
     elif method == "relevance_weighted_average":
         beta = kwargs.get("method_beta", 0.1)
-        theta = 100
+        theta = 200
         nation_relevance = sum_ / abs(nation_total_sum_mean)
         global_relevance = sum_ / abs(total_sum)
         weight = beta * nation_relevance + (1 - beta) * global_relevance
+
         line_width = weight * theta
 
     if abs(line_width) > log_threshold:
@@ -91,9 +92,9 @@ def load_graph_for(year: int, quantile=0.9, map_type: typing.Literal["all", "onl
         nation_total_count[source] = nation_total_count.get(source, 0) + row['Goldstein_count']
         nation_total_count[target] = nation_total_count.get(target, 0) + row['Goldstein_count']
 
-        total_sum += row['Goldstein_sum']
-        nation_total_sum[source] = nation_total_sum.get(source, 0) + row['Goldstein_sum']
-        nation_total_sum[target] = nation_total_sum.get(target, 0) + row['Goldstein_sum']
+        total_sum += abs(row['Goldstein_sum'])
+        nation_total_sum[source] = nation_total_sum.get(source, 0) + abs(row['Goldstein_sum'])
+        nation_total_sum[target] = nation_total_sum.get(target, 0) + abs(row['Goldstein_sum'])
 
     for (source, target) in set(edges.keys()):
         weight, line_width, alpha = generate_weight_and_line_width(method, source, target, edges, total_count,
