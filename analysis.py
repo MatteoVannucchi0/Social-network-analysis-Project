@@ -229,9 +229,13 @@ def compute_community(graph: nx.Graph, algorithm="louvain", louvain_resolution=0
         for i, community in enumerate(x):
             if node in community:
                 size = 16
+
+                node_communities = [str(i) for i, community in enumerate(x) if node in community]
+                print(node_communities)
+
                 return dict(
                     marker=dict(color=f"rgb{color_palette[i]}", size=size),
-                    hovertext=f'{node} community: \n' + str(i),
+                    hovertext=f'{node} communities: \n' + ", ".join(node_communities),
                 )
         return dict(marker=dict(color="gray"))
 
