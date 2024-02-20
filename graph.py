@@ -32,12 +32,10 @@ def generate_weight_and_line_width(method: str, source: str, target: str, edges:
 
     mean_ = (first["mean"] * first["count"] + second["mean"] * second["count"]) / (
             first["count"] + second["count"])
-    sum_ = (first["sum"] * first["count"] + second["sum"] * second["count"]) / (
-            first["count"] + second["count"])
 
+    sum_ = first["sum"] + second["sum"]
     nation_total_count = nation_to_count[source] + nation_to_count[target]
-    nation_total_sum_mean = (nation_to_sum[source] * nation_to_count[source] + nation_to_sum[
-        target] * nation_to_count[target]) / (nation_to_count[source] + nation_to_count[target])
+    nation_total_sum_mean = nation_to_sum[source] + nation_to_sum[target]
 
     weight, line_width, alpha = None, None, 0.35
     if method == "mean":

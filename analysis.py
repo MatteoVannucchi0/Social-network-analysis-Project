@@ -45,7 +45,7 @@ def compute_centrality(graph: nx.Graph, centrality: str = "degree", **kwargs) \
         convert_weight(graph, lambda x: 1 / (x - min_value + 0.01))
         centralities = nx.closeness_centrality(graph, distance="weight")
         max_centrality = max(centralities.values())
-        centralities = {k: v / max_centrality for k, v in centralities.items()}
+        # centralities = {k: v / max_centrality for k, v in centralities.items()}
     elif centrality == "katz":
         centralities = nx.katz_centrality(graph, weight="weight")
     elif centrality == "betweenness":
@@ -53,7 +53,7 @@ def compute_centrality(graph: nx.Graph, centrality: str = "degree", **kwargs) \
         convert_weight(graph, lambda x: 1 / (x - min_value + 0.01))
         centralities = nx.betweenness_centrality(graph, weight="weight")
         max_centrality = max(centralities.values())
-        centralities = {k: v / max_centrality for k, v in centralities.items()}
+        # centralities = {k: v / max_centrality for k, v in centralities.items()}
 
     def compute_kwargs(node):
         return dict(
@@ -61,7 +61,7 @@ def compute_centrality(graph: nx.Graph, centrality: str = "degree", **kwargs) \
             hoverinfo='text',
             text=node,
             marker=dict(
-                size=(centralities[node] * 4) ** 3,
+                size=(centralities[node] * 100),# ** 3,
                 cmin=0,
                 reversescale=True,
                 autocolorscale=False,
