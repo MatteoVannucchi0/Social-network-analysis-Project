@@ -39,7 +39,7 @@ def compute_centrality(graph: nx.Graph, centrality: str = "degree", **kwargs) \
         centralities = nx.degree_centrality(graph)
     elif centrality == "eigenvector":
         convert_weight(graph, abs)
-        centralities = nx.eigenvector_centrality(graph, weight="weight")
+        centralities = nx.eigenvector_centrality(graph, weight="weight", max_iter=10000)
     elif centrality == "closeness":
         min_value = min([data['weight'] for _, _, data in graph.edges(data=True)])
         convert_weight(graph, lambda x: 1 / (x + 1 + 0.00001))
