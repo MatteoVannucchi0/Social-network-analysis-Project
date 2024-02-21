@@ -96,7 +96,9 @@ def load_graph_for(year: int, quantile=0.9, map_type: typing.Literal["all", "onl
         nation_total_sum[source] = nation_total_sum.get(source, 0) + abs(row['Goldstein_sum'])
         nation_total_sum[target] = nation_total_sum.get(target, 0) + abs(row['Goldstein_sum'])
 
-    for (source, target) in set(edges.keys()):
+    unique_couples = set(tuple(sorted(couple)) for couple in edges.keys())
+
+    for (source, target) in unique_couples:
         weight, line_width, alpha = generate_weight_and_line_width(method, source, target, edges, total_count,
                                                                    total_sum, nation_total_count, nation_total_sum,
                                                                    log_threshold=15, **kwargs)
