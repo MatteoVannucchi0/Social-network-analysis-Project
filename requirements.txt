@@ -1,0 +1,6 @@
+networkx~=3.2.1
+numpy~=1.26.4
+pandas~=2.2.0
+plotly~=5.18.0
+dash~=2.15.0
+pycountry~=23.12.11
