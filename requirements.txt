@@ -4,3 +4,6 @@ pandas~=2.2.0
 plotly~=5.18.0
 dash~=2.15.0
 pycountry~=23.12.11
+pandas
+gunicorn
+numpy
