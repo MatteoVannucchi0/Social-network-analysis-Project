@@ -9,6 +9,7 @@ from graph import load_graph_for
 from plot import get_plotly_map
 
 app = Dash(__name__)
+server = app.server
 
 graph_component = dcc.Graph(id='interactive-graph',
                             style={'width': '80%', 'height': '75vh', "border": "1px solid black"},
