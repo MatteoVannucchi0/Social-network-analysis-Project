@@ -84,6 +84,7 @@ sliders_components = html.Div([
 select_components = html.Div([
     html.Div([
         html.H4('Measure displayed', style={'textAlign': 'center'}),
+
         dcc.Dropdown(
             id="measure-selection",
             options=[
@@ -118,7 +119,8 @@ select_components = html.Div([
             ],
             value='all',
         ),
-    ], style={'width': '50%', 'display': 'inline-block', 'verticalAlign': 'top'})
+    ], style={'width': '50%', 'display': 'inline-block', 'verticalAlign': 'top'}),
+
 ], style={'display': 'flex', 'justifyContent': 'center', 'width': '60%', 'margin': '0 auto'})
 
 table_component = dash_table.DataTable(id="table", style_table={'width': '50%', 'margin': 'auto'},
@@ -137,17 +139,18 @@ app.layout = html.Div([
                 html.Div([
                     html.H2('Method selection', style={'textAlign': 'center'}),
 
-                    dcc.Dropdown(
-                        id="method-selection",
-                        options=[
-                            {"label": "Relevance weighted average", "value": "relevance_weighted_average"},
-                            {'label': 'Sum', 'value': 'sum'},
-                            {'label': 'Mean', 'value': 'mean'},
-                            {'label': 'Mixed', 'value': 'mixed'},
-                        ],
-                        value='relevance_weighted_average',
-                    ),
+                    # dcc.Dropdown(
+                    #     id="method-selection",
+                    #     options=[
+                    #         {"label": "Relevance weighted average", "value": "relevance_weighted_average"},
+                    #         # {'label': 'Sum', 'value': 'sum'},
+                    #         # {'label': 'Mean', 'value': 'mean'},
+                    #         # {'label': 'Mixed', 'value': 'mixed'},
+                    #     ],
+                    #     value='relevance_weighted_average',
+                    # ),
                     method_beta_value_slider,
+                    html.P("The beta value is the weight of the local relevance. A beta value of 0 means that the global relevance is used, a beta value of 1 means that the local relevance is used."),
                 ], style={'width': '100%', 'display': 'inline-block', 'verticalAlign': 'top',
                           "padding-bottom": "25px"}),
 
@@ -160,6 +163,7 @@ app.layout = html.Div([
 
                     # Select
                     select_components,
+                    html.P("Some measure may not works since the free server deployed with Heroku is very limited."),
 
                 ], style={'width': '100%', 'display': 'inline-block', 'verticalAlign': 'top',
                           "padding-bottom": "25px"}),
@@ -206,12 +210,10 @@ app.layout = html.Div([
     Input("map-selection", "value"),
     Input("k-slider", "value"),
     Input("louvain-slider", "value"),
-    Input('method-selection', 'value'),
     Input('method-beta-slider', 'value'),
 )
-def display_map_interactive_plotly(year, quantile, measure, map_type, k_components, louvain_resolution,
-                                   method_selection, method_beta):
-    graph = load_graph_for(year, (1 - quantile / 100), map_type, method=method_selection, method_beta=method_beta)
+def display_map_interactive_plotly(year, quantile, measure, map_type, k_components, louvain_resolution,method_beta):
+    graph = load_graph_for(year, (1 - quantile / 100), map_type, method="relevance_weighted_average", method_beta=method_beta)
     if measure == "none":
         fig = get_plotly_map(graph, self_loop=False)
         title = f"Interactive map for year {year} taking top {quantile}% relationship"
