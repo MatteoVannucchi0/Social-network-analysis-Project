@@ -21,21 +21,22 @@ def geocode(node):
         return (0, 0)
 
 
-def generate_weight_and_line_width(method: str, source: str, target: str, edges: dict, total_count: int,
+def generate_weight_and_line_width(method: str, source: str, target: str, edge_computed_values: dict, total_count: int,
                                    total_sum: float, nation_to_count: dict, nation_to_sum: dict,
                                    log_threshold: int, **kwargs) -> (float, float, float):
-    first = edges.get((source, target), {"mean": 0, "sum": 0, "count": 0})
-    second = edges.get((target, source), {"mean": 0, "sum": 0, "count": 0})
+    first_edge = edge_computed_values.get((source, target), {"mean": 0, "sum": 0, "count": 0})
+    second_edge = edge_computed_values.get((target, source), {"mean": 0, "sum": 0, "count": 0})
 
-    if first["count"] == 0 and second["count"] == 0:
+    if first_edge["count"] == 0 and second_edge["count"] == 0:
         return None, None, None
 
-    mean_ = (first["mean"] * first["count"] + second["mean"] * second["count"]) / (
-            first["count"] + second["count"])
+    mean_ = (first_edge["mean"] * first_edge["count"] + second_edge["mean"] * second_edge["count"]) / (
+            first_edge["count"] + second_edge["count"])
 
-    sum_ = first["sum"] + second["sum"]
-    nation_total_count = nation_to_count[source] + nation_to_count[target]
-    nation_total_sum_mean = abs(nation_to_sum[source]) + abs(nation_to_sum[target])
+    sum_ = first_edge["sum"] + second_edge["sum"]
+    nation_total_count = nation_to_count[source] + nation_to_count[target] - first_edge["count"] - second_edge["count"]
+    nation_total_sum_mean = abs(nation_to_sum[source]) + abs(nation_to_sum[target]) - abs(first_edge["sum"]) - abs(
+        second_edge["sum"])
 
     weight, line_width, alpha = None, None, 0.35
     if method == "mean":
@@ -76,14 +77,14 @@ def load_graph_for(year: int, quantile=0.9, map_type: typing.Literal["all", "onl
     graph = nx.Graph()
 
     # Generate some global statistics for the graph
-    edges = {}
+    edge_computed_values = {}
     total_sum = 0
     total_count = 0
     nation_total_sum = {}
     nation_total_count = {}
     for _, row in df.iterrows():
         source, target = row['Source code'], row['Target code']
-        edges[(source, target)] = {
+        edge_computed_values[(source, target)] = {
             "mean": row['Goldstein_mean'],
             "sum": row['Goldstein_sum'],
             "count": row['Goldstein_count']
@@ -96,10 +97,10 @@ def load_graph_for(year: int, quantile=0.9, map_type: typing.Literal["all", "onl
         nation_total_sum[source] = nation_total_sum.get(source, 0) + abs(row['Goldstein_sum'])
         nation_total_sum[target] = nation_total_sum.get(target, 0) + abs(row['Goldstein_sum'])
 
-    unique_couples = set(tuple(sorted(couple)) for couple in edges.keys())
+    unique_couples = set(tuple(sorted(couple)) for couple in edge_computed_values.keys())
 
     for (source, target) in unique_couples:
-        weight, line_width, alpha = generate_weight_and_line_width(method, source, target, edges, total_count,
+        weight, line_width, alpha = generate_weight_and_line_width(method, source, target, edge_computed_values, total_count,
                                                                    total_sum, nation_total_count, nation_total_sum,
                                                                    log_threshold=15, **kwargs)
 
@@ -121,5 +122,6 @@ def load_graph_for(year: int, quantile=0.9, map_type: typing.Literal["all", "onl
         graph.nodes[node]['degree'] = degree[node]
 
     graph.remove_edges_from(nx.selfloop_edges(graph))
+
 
     return graph

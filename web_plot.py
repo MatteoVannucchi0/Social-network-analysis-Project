@@ -222,9 +222,15 @@ def display_map_interactive_plotly(year, quantile, measure, map_type, k_componen
     # CLustering
     average_clustering = nx.average_clustering(graph, weight='weight')
 
+    #calculate small world
+    # try:
+    #     small_world = nx.algorithms.smallworld.sigma(graph, niter=1, nrand=1)
+    # except Exception as e:
+    #     small_world = "Not computable"
+
     df = pd.DataFrame({
-        "Measure": ["Average clustering"],
-        "Value": [average_clustering]
+        "Measure": ["Average clustering"],#, "Small worldness"],
+        "Value": [average_clustering]#, small_world]
     })
     table_title = [{"name": i, "id": i} for i in df.columns]
 
