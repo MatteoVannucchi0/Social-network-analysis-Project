@@ -1,0 +1,5 @@
+networkx
+plotly
+numpy
+pandas
+matplotlib

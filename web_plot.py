@@ -12,7 +12,7 @@ app = Dash(__name__)
 
 graph_component = dcc.Graph(id='interactive-graph',
                             style={'width': '80%', 'height': '75vh', "border": "1px solid black"},
-                            config={'displayModeBar': False})
+                            config={'displayModeBar': True})
 
 method_beta_value_slider = html.Div(id='method-beta-slider-container', children=[
     html.Label('Select the beta value'),
